@@ -17,8 +17,7 @@ from PIL import Image
 
 import threading
 import queue
-
-import G1_from_DAUM1 as model
+import multiprocessing as multip
 
 import playsound
 import librosa
@@ -51,8 +50,10 @@ right_arm_wa = []
 window_size = 10
 window = window_size
 
+# window_increment = 10
+window_increment = window
+
 matrix_shown = []
-matrix_actual = []
 
 matrix_shown_full = []
 matrix_actual_full = []
@@ -66,9 +67,6 @@ with open(filename, 'r') as csvfile:
             right_arm_sa.append(float(sa))
             right_arm_ea.append(float(ea))
             right_arm_wa.append(float(wa))
-
-length_angles_motion = len(right_arm_sa)
-length_angles_motion_counter = 0
 
 # face
 # 0: nose
@@ -106,13 +104,14 @@ stability_rest_down = [0, 0, 0]
 stabiltiy_rest_up = [0, 0, 0]
 
 #______Camera Init_____
+cap = cv.VideoCapture(0)
 
 mpPose = mp.solutions.pose
 pose = mpPose.Pose()
 mpDraw = mp.solutions.drawing_utils
 
 
-cap = cv.VideoCapture(0)
+# cap = cv.VideoCapture(0)
 
 pTime = 0
 
@@ -233,153 +232,223 @@ def t_2_func(queue):
     while True:
         frequency, duration, bpm = queue.get()
 
-        if frequency == -1:
-            break
+        try:
+            if frequency < -1:
+                play_tick(20, duration, 60 / 60)
+            else:
+                # play_tick(frequency, duration, 60 / bpm)
+                play_tick(frequency, duration, 60 / 60)
+        except:
+            print("error in playing music:", frequency, duration, bpm)
 
-        # play_tick(frequency, duration, 60 / bpm)
-        play_tick(frequency, duration, 60 / 60)
 
-run = True
-try:
-    # t_2 = Thread(target=t_2_func, args=(frequency, duration, interval,))
-    # t_2.start()
+def map_value(value, from_min, from_max, to_min, to_max):
+    value = max(0, min(1, value))
+    return (value - from_min) * (to_max - to_min) / (from_max - from_min) + to_min
 
-    speed_queue = queue.Queue()
-    threading.Thread(target=t_2_func, args=(speed_queue,)).start()
+# def video_input_and_facial_landmarks(frames_queue, window_size=1, motion_seq_queue=None, camera_index=0):
+#     cap = cv.VideoCapture(camera_index)
+#     frames_window_item = []
+#     matrix_actual_perform = []
+#     counter_inner = 0
+#
+#     # matrix_shown_perform = motion_seq_queue
+#
+#     # for perform_row in matrix_shown_perform:
+#     #     # print("perform_row", perform_row)
+#     #
+#     #     screen.fill((0, 0, 0))
+#     #     pygame.draw.rect(screen, (255, 255, 255), head, 3)
+#     #     pygame.draw.rect(screen, (255, 255, 255), body, 3)
+#     #     motion = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+#     #
+#     #     # # # # #
+#     #
+#     #     pygame.display.update()
+#
+#     run = True
+#     while run:
+#         motion = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+#
+#         success, img = cap.read()
+#         imgRGB = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+#
+#         if not success:
+#             print('failed to capture frame')
+#             break
+#
+#         if counter_inner == window_size:
+#             if not frames_queue.full():
+#                 frames_queue.put([frames_window_item[0], matrix_actual_perform[0]])
+#                 print([frames_window_item[0], matrix_actual_perform[0]])
+#
+#                 frames_window_item = []
+#                 matrix_actual_perform = []
+#
+#             counter_inner = 0
+#
+#         results = pose.process(imgRGB)
+#         cv.imshow("Image", img)
+#
+#         k = cv.waitKey(1)
+#         if k == ord('q'):
+#             break
+#
+#         if results.pose_landmarks:
+#             mpDraw.draw_landmarks(img, results.pose_landmarks, mpPose.POSE_CONNECTIONS)
+#             joints_dict = {}
+#
+#             for id, lm in enumerate(results.pose_landmarks.landmark):
+#                 h, w, c = img.shape
+#                 # print("inner_data:", id, lm)
+#                 cx, cy = int(lm.x * w), int(lm.y * h)
+#                 cv.circle(img, (cx, cy), 5, (255, 0, 0), cv.FILLED)
+#
+#                 id_temp = int(id)
+#
+#                 joints_dict[id_temp] = (cx, cy)
+#
+#             if (12 in joints_dict) and (14 in joints_dict):
+#                 if 24 in joints_dict:
+#                     angle_temp = calculate_angle(joints_dict[14], joints_dict[12], joints_dict[24])
+#
+#                 angle_temp = calculate_angle(joints_dict[14], joints_dict[12],
+#                                              (joints_dict[12][0], joints_dict[12][1] + 1))
+#                 motion[0] = angle_temp
+#
+#             if (14 in joints_dict) and (16 in joints_dict):
+#                 angle_temp = calculate_angle(joints_dict[16], joints_dict[14],
+#                                              (joints_dict[14][0], joints_dict[14][1] + 1))
+#                 motion[2] = angle_temp
+#
+#             if (16 in joints_dict) and (20 in joints_dict):
+#                 angle_temp = calculate_angle(joints_dict[20], joints_dict[16],
+#                                              (joints_dict[16][0], joints_dict[16][1] + 1))
+#                 motion[4] = angle_temp
+#
+#             right_arm_data.append([motion[0], motion[2], motion[4]])
+#
+#             if (11 in joints_dict) and (13 in joints_dict):
+#                 if 23 in joints_dict:
+#                     angle_temp = calculate_angle(joints_dict[13], joints_dict[12], joints_dict[23])
+#
+#                 angle_temp = calculate_angle(joints_dict[13], joints_dict[11],
+#                                              (joints_dict[11][0], joints_dict[11][1] + 1))
+#                 motion[1] = angle_temp
+#
+#             if (13 in joints_dict) and (15 in joints_dict):
+#                 angle_temp = calculate_angle(joints_dict[15], joints_dict[13],
+#                                              (joints_dict[13][0], joints_dict[13][1] + 1))
+#                 motion[3] = angle_temp
+#
+#             if (15 in joints_dict) and (19 in joints_dict):
+#                 angle_temp = calculate_angle(joints_dict[19], joints_dict[15],
+#                                              (joints_dict[15][0], joints_dict[15][1] + 1))
+#                 motion[5] = angle_temp
+#
+#         cTime = time.time()
+#         # fps = 1 / (cTime - pTime)
+#         pTime = cTime
+#
+#         sa_temp = np.ceil(((motion[0] + 180) * 256) / 360).astype(np.uint8)
+#         ea_temp = np.ceil(((motion[2] + 180) * 256) / 360).astype(np.uint8)
+#         wa_temp = np.ceil(((motion[4] + 180) * 256) / 360).astype(np.uint8)
+#         denom_temp = np.sqrt((sa_temp ** 2) + (ea_temp ** 2) + (wa_temp ** 2))
+#
+#         t = [sa_temp / denom_temp, ea_temp / denom_temp, wa_temp / denom_temp]
+#         matrix_actual_perform.append(t)
+#
+#         # cv.putText(img, str(dtw_score__), (50, 50), cv.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 3)
+#         cv.imshow("Image", img)
+#         frames_window_item.append(motion)
+#
+#         if cv.waitKey(1) & 0xFF == ord('q'):
+#             break
+#
+#         counter_inner += 1
+#
+#     cap.release()
+#     cv.destroyAllWindows()
 
-    while run:
-        plot_scores = []
-        plot_mean_scores = []
-        total_score = 0
-        record = 0
+# def main_function(queue_video_main_function):
+if True:
+    start_curr_window = 0
+    end_curr_window = start_curr_window + window_size
+    motion_seq_length = len(right_arm_sa)
+    run = True
 
-        # print("checkpoint 1")
+    # try:
+    if True:
         agent = music_agent.Agent()
-        print("window:", window)
-        # print("checkpoint 2")
+        speed_queue = queue.Queue()
 
-        if window == 0:
-            window = window_size
+        threading.Thread(target=t_2_func, args=(speed_queue,)).start()
 
-            # # print("checkpoint 3")
-            print("temp music params:", [frequency, bpm])
-            # # print("checkpoint 4")
-            speed_queue.put([frequency, duration, bpm])
+        print("inside main after threading")
 
-            matrix_shown_padded = []
-            padding = 3
+        window_num = 0
+        last_music_played = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-            for iii in range((window - padding) // 2):
-                matrix_shown_padded.append(matrix_shown[padding + iii])
+        # while end_curr_window <= motion_seq_length:
+        while run:
+            print("#########################################")
+            print("Window Number: ", window_num)
+            print("#########################################")
 
-            for iii in range(padding):
-                matrix_shown_padded.append(matrix_shown[((window - padding) // 2) + padding])
+            matrix_shown_perform = []
+            matrix_actual_perform = []
+            matrix_actual = []
+            matrix_shown_compare = []
+            matrix_shown = []
 
-            for iii in range(window - padding - ((window - padding) // 2)):
-                matrix_shown_padded.append(matrix_shown[((window - padding) // 2) + padding + iii])
+            for index in range(start_curr_window, end_curr_window):
+                index_inner = index % motion_seq_length
+                print("index:", index_inner, start_curr_window, end_curr_window)
 
-            # model_v1.calc_correlation(matrix_shown, matrix_actual)
-            # correlation_matrix_return = model_v1.calc_correlation(matrix_shown, matrix_actual)
-            correlation_matrix_return = model_v1.calc_correlation(matrix_shown, matrix_shown_padded)
-            # print("correlation_matrix_return ", window_i)
+                sa_temp = np.ceil(((right_arm_sa[index_inner] + 180) * 256) / 360).astype(np.uint8)
+                ea_temp = np.ceil(((right_arm_ea[index_inner] + 180) * 256) / 360).astype(np.uint8)
+                wa_temp = np.ceil(((right_arm_wa[index_inner] + 180) * 256) / 360).astype(np.uint8)
+                denom_temp = np.sqrt((sa_temp ** 2) + (ea_temp ** 2) + (wa_temp ** 2))
 
-            data_min = correlation_matrix_return.min()
-            data_max = correlation_matrix_return.max()
-            data_normalized = (correlation_matrix_return - data_min) / (data_max - data_min)
+                t = [sa_temp / denom_temp, ea_temp / denom_temp, wa_temp / denom_temp]
+                matrix_shown_compare.append(t)
+                matrix_shown.append(torch.tensor([sa_temp, ea_temp, wa_temp]))
+                matrix_shown_perform.append([right_arm_sa[index_inner],
+                                             right_arm_ea[index_inner],
+                                             right_arm_wa[index_inner]])
 
-            grayscale_data = (data_normalized * 255).astype(np.uint8)
-
-            # print(grayscale_data)
-
-            # # Save the grayscale image using Pillow
-            # image = Image.fromarray(grayscale_data, mode='L')  # 'L' mode is for grayscale
-            # image_name = storage_location + "/corr_matrix_" + str(window_i) + ".png"
-            # image.save(image_name)
-
-            matrix_shown = np.array(matrix_shown)
-            # print(matrix_shown_full)
-
-            image = Image.fromarray(matrix_shown, mode='L')  # 'L' mode is for grayscale
-            # image_name = storage_location + "/shown_seq_" + str(window_i) + ".png"
-            image_name = storage_location + "/part_shown_seq_" + str(1) + ".png"
-            image.save(image_name)
-
-            matrix_actual = np.array(matrix_actual)
-
-            image = Image.fromarray(matrix_actual, mode='L')  # 'L' mode is for grayscale
-            # image_name = storage_location + "/done_seq_" + str(window_i) + ".png"
-            image_name = storage_location + "/part_done_seq_" + str(1) + ".png"
-            image.save(image_name)
-
-            music_params_list.append([frequency, bpm])
-
-            dtw_score__ = dtw_score(matrix_shown / 256, matrix_actual / 256)
-            print("dtw score: ", window_i, dtw_score__, matrix_shown)
-            dtw_score_printing = dtw_score__
-
-            window_i += 1
-
-            # freq_index = np.random.random_integers(1, len(freqs))
-            # bpm_index = np.random.random_integers(1, len(bpms))
-
-            # matrix_test_full = []
-            # for row in matrix_shown:
-            #     sa_temp = np.ceil(((row[0] + 180) * 256) / 360).astype(np.uint8)
-            #     ea_temp = np.ceil(((row[1] + 180) * 256) / 360).astype(np.uint8)
-            #     wa_temp = np.ceil(((row[2] + 180) * 256) / 360).astype(np.uint8)
-            #     denom_temp = np.sqrt((sa_temp ** 2) + (ea_temp ** 2) + (wa_temp ** 2))
-            #
-            #     matrix_test_full.append(torch.tensor([sa_temp, ea_temp, wa_temp]))
-            #
-            # matrix_test_full = [torch.stack(matrix_test_full)]
-            # matrix_test_full = torch.stack(matrix_test_full)
-            #
-            # print("matrix_test_full:", matrix_test_full)
-
-            print("matrix_test_full:", matrix_shown)
-
-            matrix_shown_test = []
-            for row in matrix_shown:
-                matrix_shown_test.append(torch.tensor(row))
-            matrix_shown = matrix_shown_test
-            del matrix_shown_test
+                # matrix_shown_full.append([sa_temp, ea_temp, wa_temp])
 
             ############### PROCESSING PARAMETERS ###############
             # get old state
+            # print("matrix_shown right after:", matrix_shown)
+            # matrix_shown = agent.get_state(matrix_shown)
+
             matrix_shown_full = [torch.stack(matrix_shown)]
-            print("checkpoint 11:", matrix_shown_full)
+            # print("matrix_shown_full 1:", matrix_shown_full)
 
             matrix_shown_full = torch.stack(matrix_shown_full)
-            print("checkpoint 12:", matrix_shown_full)
+            # print("matrix_shown_full 2:", matrix_shown_full)
 
             motion_seq_shown = matrix_shown_full
-            print("checkpoint 13:", motion_seq_shown)
+            # motion_seq_shown = matrix_shown
+
+            # print("motion_seq_shown:", motion_seq_shown)
+            print("matrix_shown_perform:", matrix_shown_perform)
 
             # get move
-            print("checkpoint 1:", motion_seq_shown)
+            print("motion_seq_shown:", motion_seq_shown)
             frequency = agent.get_music(motion_seq_shown)
-            print("checkpoint 2:", "just after agent.get_music()")
+            print("checkpoint 1:", frequency)
+            frequency = np.argmax(frequency)
 
-            # perform move and get new state
-            # reward, done, score = game.play_step(final_move)
-            # frequency = freqs[freq_index - 1]
-            # print("Enter BPM: ")
-            # bpm = int(input())
+            # frequency = map_value(frequency, 0, 1, 20, 2000)
+            frequency = 200 + 220*frequency
+            print("checkpoint 1_2:", frequency)
+
             bpm = 0
 
-            print("checkpoint 3:", frequency)
-
-            music_test = [torch.tensor(frequency), torch.tensor(bpm)]
-            music_test = torch.stack(music_test)
-
-            # DTW_pred = model.use_model(motion_seq_shown, music_test)
-            reward = dtw_score__
-
-            # train short memory
-            # agent.train_short_memory(motion_seq_shown, frequency, reward)
-
-            # remember
-            agent.remember(motion_seq_shown, frequency, reward)
+            speed_queue.put([frequency, 1, bpm])
 
             # if done:
             #     # train long memory, plot result
@@ -398,256 +467,198 @@ try:
             #     mean_score = total_score / agent.n_games
             #     plot_mean_scores.append(mean_score)
             #     plot(plot_scores, plot_mean_scores)
-            ############### PROCESSING PARAMETERS END ###############
+            ############## PROCESSING PARAMETERS END ###############
 
-            # print("temp music params:", [frequency, bpm])
-            #
-            # speed_queue.put([frequency, duration, bpm])
+            for row_i, perform_row in enumerate(matrix_shown_perform):
+                print("row_i, perform_row", row_i, perform_row)
 
-            # matrix_shown_full = []
-            # matrix_actual_full = []
+                screen.fill((0, 0, 0))
+                pygame.draw.rect(screen, (255, 255, 255), head, 3)
+                pygame.draw.rect(screen, (255, 255, 255), body, 3)
 
-            matrix_shown = []
-            matrix_actual = []
+                # motion_done_for_current_shown, matrix_actual_perform_row = queue_video_main_function.get()
+                # matrix_actual_perform.append(matrix_actual_perform_row)
+                #
+                # print("motion_done_for_current_shown:", [motion_done_for_current_shown, matrix_actual_perform_row])
+                #
+                # # motion = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                # motion = motion_done_for_current_shown
 
-            # # print("checkpoint 3")
-            print("temp music params 2:", [frequency, bpm])
-            # # print("checkpoint 4")
-            speed_queue.put([frequency, duration, bpm])
+                motion = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-        screen.fill((0, 0, 0))
-        pygame.draw.rect(screen, (255, 255, 255), head, 3)
-        pygame.draw.rect(screen, (255, 255, 255), body, 3)
+                success, img = cap.read()
+                imgRGB = cv.cvtColor(img, cv.COLOR_BGR2RGB)
 
-        motion = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        # print("checkpoint 5")
+                if not success:
+                    print('failed to capture frame')
+                    break
 
-        # time.sleep(2)
+                # if counter_inner == window_size:
+                #     if not frames_queue.full():
+                #         frames_queue.put([frames_window_item[0], matrix_actual_perform[0]])
+                #         print([frames_window_item[0], matrix_actual_perform[0]])
+                #
+                #         frames_window_item = []
+                #         matrix_actual_perform = []
+                #
+                #     counter_inner = 0
 
-        success, img = cap.read()
-        # print("checkpoint 6")
+                results = pose.process(imgRGB)
+                # cv.imshow("Image", img)
 
-        imgRGB = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-        # print("checkpoint 7")
+                k = cv.waitKey(1)
+                if k == ord('q'):
+                    break
 
-        results = pose.process(imgRGB)
-        # print("checkpoint 8")
-        # print(results.pose_landmarks)
+                if results.pose_landmarks:
+                    mpDraw.draw_landmarks(img, results.pose_landmarks, mpPose.POSE_CONNECTIONS)
+                    joints_dict = {}
 
-        # if flag_rest_down is False:
-        #     cv.putText(img, "lower your hands in a comfortable position.", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
-        #     cv.putText(img, "hold up your hands in a comfortable position.", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
+                    for id, lm in enumerate(results.pose_landmarks.landmark):
+                        h, w, c = img.shape
+                        # print("inner_data:", id, lm)
+                        cx, cy = int(lm.x * w), int(lm.y * h)
+                        cv.circle(img, (cx, cy), 5, (255, 0, 0), cv.FILLED)
 
-        if results.pose_landmarks:
-            mpDraw.draw_landmarks(img, results.pose_landmarks, mpPose.POSE_CONNECTIONS)
-            joints_dict = {}
+                        id_temp = int(id)
 
-            for id, lm in enumerate(results.pose_landmarks.landmark):
-                h, w, c = img.shape
-                # print("inner_data:", id, lm)
-                cx, cy = int(lm.x * w), int(lm.y * h)
-                cv.circle(img, (cx, cy), 5, (255, 0, 0), cv.FILLED)
+                        joints_dict[id_temp] = (cx, cy)
 
-                id_temp = int(id)
+                    if (12 in joints_dict) and (14 in joints_dict):
+                        if 24 in joints_dict:
+                            angle_temp = calculate_angle(joints_dict[14], joints_dict[12], joints_dict[24])
 
-                joints_dict[id_temp] = (cx, cy)
+                        angle_temp = calculate_angle(joints_dict[14], joints_dict[12],
+                                                     (joints_dict[12][0], joints_dict[12][1] + 1))
+                        motion[0] = angle_temp
 
-            if (12 in joints_dict) and (14 in joints_dict):
-                if 24 in joints_dict:
-                    angle_temp = calculate_angle(joints_dict[14], joints_dict[12], joints_dict[24])
+                    if (14 in joints_dict) and (16 in joints_dict):
+                        angle_temp = calculate_angle(joints_dict[16], joints_dict[14],
+                                                     (joints_dict[14][0], joints_dict[14][1] + 1))
+                        motion[2] = angle_temp
 
-                angle_temp = calculate_angle(joints_dict[14], joints_dict[12],
-                                             (joints_dict[12][0], joints_dict[12][1] + 1))
-                motion[0] = angle_temp
+                    if (16 in joints_dict) and (20 in joints_dict):
+                        angle_temp = calculate_angle(joints_dict[20], joints_dict[16],
+                                                     (joints_dict[16][0], joints_dict[16][1] + 1))
+                        motion[4] = angle_temp
 
-            if (14 in joints_dict) and (16 in joints_dict):
-                angle_temp = calculate_angle(joints_dict[16], joints_dict[14],
-                                             (joints_dict[14][0], joints_dict[14][1] + 1))
-                motion[2] = angle_temp
+                    right_arm_data.append([motion[0], motion[2], motion[4]])
 
-            if (16 in joints_dict) and (20 in joints_dict):
-                angle_temp = calculate_angle(joints_dict[20], joints_dict[16],
-                                             (joints_dict[16][0], joints_dict[16][1] + 1))
-                motion[4] = angle_temp
+                    if (11 in joints_dict) and (13 in joints_dict):
+                        if 23 in joints_dict:
+                            angle_temp = calculate_angle(joints_dict[13], joints_dict[12], joints_dict[23])
 
-            right_arm_data.append([motion[0], motion[2], motion[4]])
+                        angle_temp = calculate_angle(joints_dict[13], joints_dict[11],
+                                                     (joints_dict[11][0], joints_dict[11][1] + 1))
+                        motion[1] = angle_temp
+
+                    if (13 in joints_dict) and (15 in joints_dict):
+                        angle_temp = calculate_angle(joints_dict[15], joints_dict[13],
+                                                     (joints_dict[13][0], joints_dict[13][1] + 1))
+                        motion[3] = angle_temp
+
+                    if (15 in joints_dict) and (19 in joints_dict):
+                        angle_temp = calculate_angle(joints_dict[19], joints_dict[15],
+                                                     (joints_dict[15][0], joints_dict[15][1] + 1))
+                        motion[5] = angle_temp
+
+                cTime = time.time()
+                # fps = 1 / (cTime - pTime)
+                pTime = cTime
+
+                sa_temp = np.ceil(((motion[0] + 180) * 256) / 360).astype(np.uint8)
+                ea_temp = np.ceil(((motion[2] + 180) * 256) / 360).astype(np.uint8)
+                wa_temp = np.ceil(((motion[4] + 180) * 256) / 360).astype(np.uint8)
+                denom_temp = np.sqrt((sa_temp ** 2) + (ea_temp ** 2) + (wa_temp ** 2))
+
+                t = [sa_temp / denom_temp, ea_temp / denom_temp, wa_temp / denom_temp]
+                matrix_actual_perform.append(t)
+                matrix_actual.append(torch.tensor([sa_temp, ea_temp, wa_temp]))
+
+                # cv.putText(img, str(dtw_score__), (50, 50), cv.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 3)
+                cv.imshow("Image", img)
+                # frames_window_item.append(motion)
+
+                # counter_inner += 1
+
+                # # # # #
+                color_polygon = (0, 0, 0)
+
+                c_obj.draw()
+                c_obj.change(motion[0], motion[1], motion[2], motion[3], motion[4], motion[5],
+                             motion[6], motion[7], motion[8], motion[9], motion[10], motion[11],
+                             perform_row[0], 0,
+                             perform_row[1], 0,
+                             perform_row[2], 0,
+                             0, 0, 0, 0, 0, 0,
+                             True, color_polygon)
+
+                pygame.display.update()
+
+            # # # # # # # # # #
+
+            # perform move and get new state
+            # reward, done, score = game.play_step(final_move)
+            # frequency = freqs[freq_index - 1]
+            # print("Enter BPM: ")
+            # bpm = int(input())
+            bpm = 0
+            # frequency = 0
+
+            music_test = [torch.tensor(frequency), torch.tensor(bpm)]
+            music_test = torch.stack(music_test)
+
+            # DTW_pred = model.use_model(motion_seq_shown, music_test)
+            matrix_shown_compare = np.array(matrix_shown_compare)
+            matrix_actual_perform = np.array(matrix_actual_perform)
+
+            print("for dtw_score", matrix_shown_compare, matrix_actual_perform)
+
+            dtw_score__ = dtw_score(matrix_shown_compare / 256, matrix_actual_perform / 256)
+            reward = 1000 - abs(1000 * dtw_score__)
+
+            matrix_actual_full = [torch.stack(matrix_actual)]
+            matrix_actual_full = torch.stack(matrix_actual_full)
+            motion_seq_done = matrix_actual_full
+
+            # train short memory
+            agent.train_short_memory(motion_seq_shown, frequency, reward, motion_seq_done)
+
+            # remember
+            agent.remember(motion_seq_shown, frequency, reward)
+
+            start_curr_window += window_increment
+            end_curr_window += window_increment
+
+            window_num += 1
+
+            print("iteration end:", dtw_score__, reward)
+
+            if cv.waitKey(1) & 0xFF == ord('q'):
+                pygame.quit()
+                break
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    run = False
+
+    # except Exception as e:
+    #     print("Exception in main:", e)
+
+    pygame.quit()
 
 
-            if (11 in joints_dict) and (13 in joints_dict):
-                if 23 in joints_dict:
-                    angle_temp = calculate_angle(joints_dict[13], joints_dict[12], joints_dict[23])
-
-                angle_temp = calculate_angle(joints_dict[13], joints_dict[11],
-                                             (joints_dict[11][0], joints_dict[11][1] + 1))
-                motion[1] = angle_temp
-
-            if (13 in joints_dict) and (15 in joints_dict):
-                angle_temp = calculate_angle(joints_dict[15], joints_dict[13],
-                                             (joints_dict[13][0], joints_dict[13][1] + 1))
-                motion[3] = angle_temp
-
-            if (15 in joints_dict) and (19 in joints_dict):
-                angle_temp = calculate_angle(joints_dict[19], joints_dict[15],
-                                             (joints_dict[15][0], joints_dict[15][1] + 1))
-                motion[5] = angle_temp
-
-        cTime = time.time()
-        fps = 1 / (cTime - pTime)
-        pTime = cTime
-
-        # pose_sim = pose_similarity([motion[0], motion[2], motion[4]],
-        #                            [right_arm_sa[length_angles_motion_counter],
-        #                             right_arm_ea[length_angles_motion_counter],
-        #                             right_arm_wa[length_angles_motion_counter]])
-        #
-        # # cv.putText(img, str(np.round_([motion[0], motion[2], motion[4]], decimals=3)), (50, 50), cv.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 3)
-        # cv.putText(img, str(pose_sim), (50, 50), cv.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 3)
-        cv.putText(img, str(dtw_score_printing), (50, 50), cv.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 3)
-        cv.imshow("Image", img)
-
-        # print("checkpoint 9")
-        # # cv.waitKey(1)
-        #
-        # color_polygon = (0, 127, 0)
-        color_polygon = (0, 0, 0)
-        # if pose_sim > 0.0015:
-        #     color_polygon = (127, 0, 0)
-
-        c_obj.draw()
-        c_obj.change(motion[0], motion[1], motion[2], motion[3], motion[4], motion[5],
-                     motion[6], motion[7], motion[8], motion[9], motion[10], motion[11],
-                     right_arm_sa[length_angles_motion_counter], 0,
-                     right_arm_ea[length_angles_motion_counter], 0,
-                     right_arm_wa[length_angles_motion_counter], 0,
-                     0, 0, 0, 0, 0, 0,
-                     True, color_polygon)
-
-        #
-        sa_temp = np.ceil(((right_arm_sa[length_angles_motion_counter] + 180) * 256) / 360).astype(np.uint8)
-        ea_temp = np.ceil(((right_arm_ea[length_angles_motion_counter] + 180) * 256) / 360).astype(np.uint8)
-        wa_temp = np.ceil(((right_arm_wa[length_angles_motion_counter] + 180) * 256) / 360).astype(np.uint8)
-        denom_temp = np.sqrt((sa_temp**2) + (ea_temp**2) + (wa_temp**2))
-
-        t = [sa_temp / denom_temp, ea_temp / denom_temp, wa_temp / denom_temp]
-        matrix_shown.append(t)
-
-        matrix_shown_full.append([sa_temp, ea_temp, wa_temp])
-
-        #
-        sa_temp = np.ceil(((motion[0] + 180) * 256) / 360).astype(np.uint8)
-        ea_temp = np.ceil(((motion[2] + 180) * 256) / 360).astype(np.uint8)
-        wa_temp = np.ceil(((motion[4] + 180) * 256) / 360).astype(np.uint8)
-        denom_temp = np.sqrt((sa_temp ** 2) + (ea_temp ** 2) + (wa_temp ** 2))
-
-        t = [sa_temp / denom_temp, ea_temp / denom_temp, wa_temp / denom_temp]
-        matrix_actual.append(t)
-
-        matrix_actual_full.append([sa_temp, ea_temp, wa_temp])
-
-        window -= 1
-        # print("checkpoint 10")
-        print("10:", matrix_shown_full)
-        print("10:", matrix_actual_full)
-
-        # audio_file = path + "/" + audio_files[length_angles_motion_counter]
-        # y, sr = librosa.load(audio_file)
-        # stft = librosa.stft(y)
-        # stft_db = librosa.amplitude_to_db(np.abs(stft))
-
-        # c_obj_defined.draw()
-        # c_obj_defined.change(right_arm_sa[length_angles_motion_counter], 0,
-        #                      right_arm_ea[length_angles_motion_counter], 0,
-        #                      right_arm_wa[length_angles_motion_counter], 0,
-        #                      0, 0, 0, 0, 0, 0)
-
-        length_angles_motion_counter += 1
-        length_angles_motion_counter = length_angles_motion_counter % len(right_arm_sa)
-
-        if cv.waitKey(1) & 0xFF == ord('q'):
-            break
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                run = False
-
-        pygame.display.update()
-
-    # t_2_event.set()
-    speed_queue.put([-1, -1, -1])
-except:
-    pass
-
-pygame.quit()
-cap.release()
-cv.destroyAllWindows()
-
-# # with open(filename, 'w') as csvfile:
-# #     csvwriter = csv.writer(csvfile)
-# #     csvwriter.writerow(fields)
-# #     csvwriter.writerows(right_arm_data)
+# if __name__ == "__main__":
+#     queue_video = multip.Queue(maxsize=20)
 #
-# matrix_shown_full = np.array(matrix_shown_full)
-# matrix_shown_full = matrix_shown_full[:10 * (len(matrix_shown_full) // 10)]
-# # print(matrix_shown_full)
+#     p1 = multip.Process(target=video_input_and_facial_landmarks, args=(queue_video,))
+#     p2 = multip.Process(target=main_function, args=(queue_video,))
 #
-# image = Image.fromarray(matrix_shown_full, mode='L')  # 'L' mode is for grayscale
-# # image_name = storage_location + "/shown_seq_" + str(window_i) + ".png"
-# image_name = storage_location + "/shown_seq_" + str(1) + ".png"
-# image.save(image_name)
+#     # Start both processes
+#     p1.start()
+#     p2.start()
 #
-# matrix_actual_full = np.array(matrix_actual_full)
-# matrix_actual_full = matrix_actual_full[:10 * (len(matrix_actual_full) // 10)]
-#
-# image = Image.fromarray(matrix_actual_full, mode='L')  # 'L' mode is for grayscale
-# # image_name = storage_location + "/done_seq_" + str(window_i) + ".png"
-# image_name = storage_location + "/done_seq_" + str(1) + ".png"
-# image.save(image_name)
-#
-# with open(music_params_csv, 'w') as csvfile:
-#     csvwriter = csv.writer(csvfile)
-#     # csvwriter.writerow(music_params_list)
-#     csvwriter.writerows(music_params_list)
-#
-# # TRAINING and USING the model
-#
-# model.train()
-#
-# something = [
-#     [1.6466530916060216, -6.197230574440126, -14.995079129175995],
-#     [1.889484790107918, -5.495088463517644, -14.15341258785141],
-#     [2.234225826449654, -4.932087428264866, -13.799485396019389],
-#     [2.5244316425008577, -16.05760840828249, -35.60453398043311],
-#     [2.988632455229505, -14.15341258785141, -29.604450746004908],
-#     [2.2070614927153462, -12.933780353202234, -24.128402930267857],
-#     [2.0157895227202656, -10.388857815469619, -20.55604521958346],
-#     [2.067103216935307, -13.873702685485192, -32.31961650818018],
-#     [2.862405226111779, -15.697792517861332, -27.474431626277134],
-#     [4.377067977053934, -16.04426686320363, -27.149681697783173]]
-# matrix_test_full = []
-#
-# for row in something:
-#     sa_temp = np.ceil(((row[0] + 180) * 256) / 360).astype(np.uint8)
-#     ea_temp = np.ceil(((row[1] + 180) * 256) / 360).astype(np.uint8)
-#     wa_temp = np.ceil(((row[2] + 180) * 256) / 360).astype(np.uint8)
-#     denom_temp = np.sqrt((sa_temp ** 2) + (ea_temp ** 2) + (wa_temp ** 2))
-#
-#     matrix_test_full.append(torch.tensor([sa_temp, ea_temp, wa_temp]))
-#
-# matrix_test_full = [torch.stack(matrix_test_full)]
-# matrix_test_full = torch.stack(matrix_test_full)
-# # print(matrix_test_full)
-# # print(matrix_test_full.size())
-#
-# while True:
-#     print("Enter frequency: ")
-#     freq = int(input())
-#     # print("Enter BPM: ")
-#     # bpm = int(input())
-#     bpm = 0
-#
-#     music_test = [torch.tensor(freq), torch.tensor(bpm)]
-#     music_test = torch.stack(music_test)
-#
-#     DTW_pred = model.use_model(matrix_test_full, music_test)
-#
-#     print(DTW_pred)
+#     # Wait for both processes to complete
+#     p1.join()
+#     p2.join()
