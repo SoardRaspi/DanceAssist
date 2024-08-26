@@ -2084,6 +2084,7 @@ while iter_count <= 4:
             # # print(a, b)
             # # cv.ellipse(img, (nose[0], nose[1]), (a, b), 0, 0, 360, (0, 255, 0), -1)
 
+            reward /= 2
             print("reward from the eyes:", reward)
 
             # TODO: Uncomment this for inference
