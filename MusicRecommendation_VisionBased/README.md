@@ -1,0 +1,1 @@
+This folder contains files for RL-based music recommendation system which takes the cropped-to-eye video as the input and recommends the music. Currently the model selects from six musics. Since the number of musics in the selection is a finite value, in this case 6, the final layer is a softmax layer.
