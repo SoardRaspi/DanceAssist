@@ -38,6 +38,7 @@ from PyQt5.QtCore import QTimer
 import pygame
 
 import mediapipe as mp
+import imageio
 
 mpPose = mp.solutions.pose
 pose = mpPose.Pose()
@@ -221,19 +222,21 @@ def play_gif(frames, label, frame_idx, play_count, loop_count=1):
     root.after(100, play_gif)  # Adjust timing if needed
 
 def get_actor_extra_RNN():
-    num_frames = 32
+    # num_frames = 32
+    num_frames = 60
+
     # shape_single_frame = raw_video_input[0][0].shape
 
     # print("num_frames, shape_single_frame:", num_frames, shape_single_frame)
 
-    print("\nStart of shapes in get_actor_extra_RNN---", file=open(log_file, 'a'))
+    print("\nStart of shapes in get_actor_extra_RNN---")
 
     right_eye_seq = layers.Input(shape=(num_frames, 32, 
                                         128, 3))
     left_eye_seq = layers.Input(shape=(num_frames, 32, 
                                        128, 3))
     
-    print(f"\n shape of right_eye_seq: {right_eye_seq.shape}", file=open(log_file, 'a'))
+    print(f"\n shape of right_eye_seq: {right_eye_seq.shape}")
     
     # TimeDistributed CNN for spatial feature extraction
     x = layers.TimeDistributed(
@@ -244,17 +247,17 @@ def get_actor_extra_RNN():
         ]),
         name="TimeDistributed_CNN"
     )(right_eye_seq)  # Shape: (batch_size, sequence_length, features)
-    print(f"\n shape of x 1: {x.shape}", file=open(log_file, 'a'))
+    print(f"\n shape of x 1: {x.shape}")
 
     # 3-layer GRU for temporal sequence modeling
     x = layers.GRU(64, return_sequences=True, activation="tanh", name="GRU_Layer_1")(x)
-    print(f"\n shape of x 2: {x.shape}", file=open(log_file, 'a'))
+    print(f"\n shape of x 2: {x.shape}")
 
     x = layers.GRU(64, return_sequences=True, activation="tanh", name="GRU_Layer_2")(x)
-    print(f"\n shape of x 3: {x.shape}", file=open(log_file, 'a'))
+    print(f"\n shape of x 3: {x.shape}")
 
     x_right_eye = layers.GRU(64, return_sequences=False, activation="tanh", name="GRU_Layer_3")(x)
-    print(f"\n shape of x_right_eye: {x_right_eye.shape}", file=open(log_file, 'a'))
+    print(f"\n shape of x_right_eye: {x_right_eye.shape}")
 
     # # TimeDistributed CNN for spatial feature extraction
     # x = layers.TimeDistributed(
@@ -272,7 +275,7 @@ def get_actor_extra_RNN():
     # x_left_eye = layers.GRU(64, return_sequences=False, activation="tanh", name="GRU_Layer_3")(x)
 
     dense_right_eye = layers.Dense(6, activation="softmax")(x_right_eye)
-    print(f"\n shape of dense_right_eye: {dense_right_eye.shape}", file=open(log_file, 'a'))
+    print(f"\n shape of dense_right_eye: {dense_right_eye.shape}")
 
     model = keras.Model(inputs=right_eye_seq, outputs=dense_right_eye)
     model.summary()
@@ -298,7 +301,7 @@ def get_actor_extra():
     #     layers.Activation(softmax)
     # ])
 
-    print("\nStart of shapes in get_actor_extra---", file=open(log_file, 'a'))
+    print("\nStart of shapes in get_actor_extra---")
 
     right_eye = layers.Input(shape=(1024, 7, 7))
     left_eye = layers.Input(shape=(1024, 7, 7))
@@ -312,36 +315,36 @@ def get_actor_extra():
 
     last_state_concat = layers.Concatenate(axis=-1)([right_eye, left_eye])
     print("shape of last_state_concat in get_actor_extra:", last_state_concat.shape)
-    print(f"\nshape of last_state_concat in get_actor_extra: {last_state_concat.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of last_state_concat in get_actor_extra: {last_state_concat.shape}")
 
     # concat_layer_flatten = tf.reshape(last_state_concat, (tf.shape(last_state_concat)[0], -1))
     concat_layer_flatten = layers.Reshape((-1,))(last_state_concat)
     print("shape of concat_layer_flatten in get_actor_extra:", concat_layer_flatten.shape)
-    print(f"\nshape of concat_layer_flatten in get_actor_extra: {concat_layer_flatten.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of concat_layer_flatten in get_actor_extra: {concat_layer_flatten.shape}")
 
     output_after_dense = dense_layer_1(concat_layer_flatten)
-    print(f"\nshape of output_after_dense in get_actor_extra after dense_layer_1: {output_after_dense.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of output_after_dense in get_actor_extra after dense_layer_1: {output_after_dense.shape}")
 
     # output_after_dense = tf.reshape(output_after_dense, (-1,))
     output_after_dense = layers.Reshape((-1,))(output_after_dense)
-    print(f"\nshape of output_after_dense in get_actor_extra after reshaping 1: {output_after_dense.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of output_after_dense in get_actor_extra after reshaping 1: {output_after_dense.shape}")
 
     # output_after_dense = tf.expand_dims(output_after_dense, axis=0)
     output_after_dense = layers.Reshape((1, -1))(output_after_dense)
-    print(f"\nshape of output_after_dense in get_actor_extra after reshaping 2: {output_after_dense.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of output_after_dense in get_actor_extra after reshaping 2: {output_after_dense.shape}")
 
     output_after_dense = dense_layer_1_conc(output_after_dense)
-    print(f"\nshape of output_after_dense in get_actor_extra after dense_layer_1_conc: {output_after_dense.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of output_after_dense in get_actor_extra after dense_layer_1_conc: {output_after_dense.shape}")
 
     output_after_dense = dense_layer_2(output_after_dense)
-    print(f"\nshape of output_after_dense in get_actor_extra after dense_layer_2: {output_after_dense.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of output_after_dense in get_actor_extra after dense_layer_2: {output_after_dense.shape}")
 
     output_after_dense = dense_layer_3(output_after_dense)
-    print(f"\nshape of output_after_dense in get_actor_extra after dense_layer_3: {output_after_dense.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of output_after_dense in get_actor_extra after dense_layer_3: {output_after_dense.shape}")
 
     final_output = softmax(output_after_dense)
-    print(f"\nshape of final_output in get_actor_extra: {final_output.shape}", file=open(log_file, 'a'))
-    print("\nEnd of shapes in get_actor_extra---", file=open(log_file, 'a'))
+    print(f"\nshape of final_output in get_actor_extra: {final_output.shape}")
+    print("\nEnd of shapes in get_actor_extra---")
 
     model = keras.Model([right_eye, left_eye], final_output)
     return model
@@ -422,7 +425,7 @@ def get_critic_extra():
     dense_layer_comb_2 = keras.layers.Dense(8)
     dense_layer_final = keras.layers.Dense(1)
 
-    print("\nStart of shapes in get_critic_extra---", file=open(log_file, 'a'))
+    print("\nStart of shapes in get_critic_extra---")
 
     print("critic model, layer definitions done...")
 
@@ -431,48 +434,48 @@ def get_critic_extra():
     last_state_concat = layers.Concatenate(axis=-1)([right_eye, left_eye])
 
     print("shape of last_state_concat:", last_state_concat.shape)
-    print(f"\nshape of last_state_concat in get_critic_extra: {last_state_concat.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of last_state_concat in get_critic_extra: {last_state_concat.shape}")
 
     # Flatten the concatenated states
     # concat_layer_flatten = tf.reshape(last_state_concat, (tf.shape(last_state_concat)[0], -1))
     concat_layer_flatten = layers.Reshape((-1,))(last_state_concat)
     print("shape of concat_layer_flatten:", concat_layer_flatten.shape)  
-    print(f"\nshape of concat_layer_flatten in get_critic_extra: {concat_layer_flatten.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of concat_layer_flatten in get_critic_extra: {concat_layer_flatten.shape}")
 
     # Pass through the first dense layer
     output_after_dense = dense_layer_1(concat_layer_flatten)
-    print(f"\nshape of output_after_dense in get_critic_extra after dense_layer_1: {output_after_dense.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of output_after_dense in get_critic_extra after dense_layer_1: {output_after_dense.shape}")
     
     # output_after_dense = tf.reshape(output_after_dense, (-1,))
     output_after_dense = layers.Reshape((-1,))(output_after_dense)
     print("shape of output_after_dense:", output_after_dense.shape)
-    print(f"\nshape of output_after_dense in get_critic_extra after dense_layer_1 and reshape: {output_after_dense.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of output_after_dense in get_critic_extra after dense_layer_1 and reshape: {output_after_dense.shape}")
 
     output_after_dense = dense_layer_1_conc(output_after_dense)
-    print(f"\nshape of output_after_dense in get_critic_extra after dense_layer_1_conc: {output_after_dense.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of output_after_dense in get_critic_extra after dense_layer_1_conc: {output_after_dense.shape}")
 
     # Pass through the additional dense layers
     output_after_dense = dense_layer_2(output_after_dense)
-    print(f"\nshape of output_after_dense in get_critic_extra after dense_layer_2: {output_after_dense.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of output_after_dense in get_critic_extra after dense_layer_2: {output_after_dense.shape}")
 
     output_after_dense = dense_layer_3(output_after_dense)
-    print(f"\nshape of output_after_dense in get_critic_extra after dense_layer_3: {output_after_dense.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of output_after_dense in get_critic_extra after dense_layer_3: {output_after_dense.shape}")
 
     # output_after_dense = tf.reshape(output_after_dense, (1, -1))
     output_after_dense = layers.Reshape((1, -1))(output_after_dense)
     print("shape of output_after_dense 2:", output_after_dense.shape)
-    print(f"\nshape of output_after_dense in get_critic_extra after dense_layer_3 and reshape: {output_after_dense.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of output_after_dense in get_critic_extra after dense_layer_3 and reshape: {output_after_dense.shape}")
 
     # Parallel action processing layer in the model
-    print(f"\nshape of action in get_critic_extra for parallel: {action.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of action in get_critic_extra for parallel: {action.shape}")
 
     # Process action input through parallel dense layers
     action_inner = dense_layer_parallel_1(action)
-    print(f"\nshape of action_inner in get_critic_extra after dense_layer_parallel_1: {action_inner.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of action_inner in get_critic_extra after dense_layer_parallel_1: {action_inner.shape}")
 
     action_inner = dense_layer_parallel_2(action_inner)
     print("shape of action_inner:", action_inner.shape)
-    print(f"\nshape of action_inner in get_critic_extra after dense_layer_parallel_2: {action_inner.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of action_inner in get_critic_extra after dense_layer_parallel_2: {action_inner.shape}")
 
     # Combine action and output_after_dense
     # comb = tf.concat([action, output_after_dense], axis=0)
@@ -480,25 +483,25 @@ def get_critic_extra():
     comb = layers.Concatenate(axis=1)([action_inner, output_after_dense])
 
     print("shape of comb:", comb.shape)
-    print(f"\nshape of comb in get_critic_extra after action_inner, output_after_dense concat: {comb.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of comb in get_critic_extra after action_inner, output_after_dense concat: {comb.shape}")
 
     # comb = tf.reshape(comb, (tf.shape(comb)[0], -1))
     comb = layers.Reshape((-1,))(comb)
     print("shape of comb 2:", comb.shape)
-    print(f"\nshape of comb in get_critic_extra after comb reshape: {comb.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of comb in get_critic_extra after comb reshape: {comb.shape}")
 
     # Apply the combined dense layers
     comb = dense_layer_comb_1(comb)
-    print(f"\nshape of comb in get_critic_extra after dense_layer_comb_1: {comb.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of comb in get_critic_extra after dense_layer_comb_1: {comb.shape}")
 
     comb = dense_layer_comb_2(comb)
     print("shape of comb 3:", comb.shape)
-    print(f"\nshape of comb in get_critic_extra after dense_layer_comb_2: {comb.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of comb in get_critic_extra after dense_layer_comb_2: {comb.shape}")
 
     # Final output
     final_output = dense_layer_final(comb)
     print("shape of final_output:", final_output.shape)
-    print(f"\nshape of final_output in get_critic_extra for final output: {final_output.shape}", file=open(log_file, 'a'))
+    print(f"\nshape of final_output in get_critic_extra for final output: {final_output.shape}")
 
     # # Doing numpy argmax now:
     # final_output = int(np.argmax(final_output))
@@ -645,7 +648,7 @@ class Buffer:
             target_critic_output = target_critic(
                 [next_right_eye_batch, next_left_eye_batch, target_actions], training=True
             )
-            print(f"\nvalue of final_output form target_critic: {target_critic_output}, {type(target_critic_output)}", file=open(log_file, 'a'))
+            print(f"\nvalue of final_output form target_critic: {target_critic_output}, {type(target_critic_output)}")
             print("shape of target_critic_output:", target_critic_output.shape, reward_batch.shape)
             print("shapes of objects before critic_model in Buffer update:", right_eye_batch.shape,
                   left_eye_batch.shape, action_batch.shape)
@@ -986,10 +989,10 @@ def concat_images(frames):
     return empty_frame
 
 def video_capture_and_stuff():
-    app = QApplication(sys.argv)
+    # app = QApplication(sys.argv)
 
-    window = GifPlayer("/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/animation_from.gif")
-    window.show()
+    # window = GifPlayer("/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/animation_from.gif")
+    # window.show()
 
     green_sig_init_once = False
     flag_generated_motion_once = False
@@ -999,6 +1002,7 @@ def video_capture_and_stuff():
     flag_do_demo_warn = False
     flag_take_usr_input_rep_demo = False
     flag_user_rep_done = False
+    flag_shown_GIF_loop_once = False
 
     pose_seq_similarity_score = None
 
@@ -1125,7 +1129,8 @@ def video_capture_and_stuff():
 
     cap = cv.VideoCapture(0)
 
-    num_frames = 32
+    # num_frames = 32
+    num_frames = 60
 
     # ### Threading objects start
     # frame_queue = queue.Queue(maxsize=5)  # Limit the queue size to avoid overfilling
@@ -1230,23 +1235,31 @@ def video_capture_and_stuff():
                     if flag_red_sig is False:
                         print("just before the flag_red_sig main if statement", (time.time() - red_signal), flag_red_sig)
                     
-                    if ((time.time() - red_signal) < 3) and (flag_red_sig is False):
-                        # print("inside the flag_red_sig main if statement")
-                        if success:
-                            cv.putText(img2, "Please stand around 2-3 meters from the screen", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
-                            cv.putText(img2, str(3 - (int(time.time() - red_signal))), (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
+                    if prev_state is None:
+                        if ((time.time() - red_signal) < 3) and (flag_red_sig is False):
+                            # print("inside the flag_red_sig main if statement")
+                            if success:
+                                cv.putText(img2, "Please stand around 2-3 meters from the screen", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
+                                cv.putText(img2, str(3 - (int(time.time() - red_signal))), (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
+                            
+                            else:
+                                raise Exception("Error in initial video feed")
                         
                         else:
-                            raise Exception("Error in initial video feed")
+                            flag_red_sig = True
+
+                            if green_sig_init_once is False:
+                                green_signal = time.time()
+                                green_sig_init_once = True
+                            
+                            print("green_signal time init: ", green_signal)
                     
                     else:
                         flag_red_sig = True
 
                         if green_sig_init_once is False:
-                            green_signal =  time.time()
+                            green_signal = time.time()
                             green_sig_init_once = True
-                        
-                        print("green_signal time init: ", green_signal)
                     
                     user_starting_pose = []
 
@@ -1260,19 +1273,24 @@ def video_capture_and_stuff():
                     # else:
                     #     print("flag_green_sig is false now false now")
                     
-                    if (flag_red_sig is True) and (flag_green_sig is False):
-                        if (time.time() - green_signal) < 5:
-                            if success:
-                                cv.putText(img2, "Getting your current position", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
-                                cv.putText(img2, str(5 - (int(time.time() - green_signal))), (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
-                                # print("flag_green_sig is still False: ", 5 - (int(time.time() - green_signal)), time.time(), green_signal)
+                    if prev_state is None:
+                    # if True:
+                        if (flag_red_sig is True) and (flag_green_sig is False):
+                            if (time.time() - green_signal) < 5:
+                                if success:
+                                    cv.putText(img2, "Getting your current position", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
+                                    cv.putText(img2, str(5 - (int(time.time() - green_signal))), (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
+                                    # print("flag_green_sig is still False: ", 5 - (int(time.time() - green_signal)), time.time(), green_signal)
+                                
+                                else:
+                                    raise Exception("Error in initial video feed")
                             
                             else:
-                                raise Exception("Error in initial video feed")
-                        
-                        else:
-                            flag_green_sig = True
-                            print("flag_green_sig is now True")
+                                flag_green_sig = True
+                                print("flag_green_sig is now True")
+                    
+                    else:
+                        flag_green_sig = True
                 # except Exception as e_:
                 #     print("the error in boolean setting part of code:", e_)
                 
@@ -1355,15 +1373,17 @@ def video_capture_and_stuff():
                                 print("joint angles:", right_sa, right_ea, left_ea, left_sa)
                                 print("joint angles:", right_ka, right_ha, left_ha, left_ka)
 
-                                if (flag_green_sig is False) and (flag_red_sig is True):
+                                if (flag_green_sig is False) and (flag_red_sig is True) and (prev_state is None):
                                     # VRNN_pose_input.append([right_ea, right_sa, left_sa, left_ea, 
                                     #                         left_ha, left_ka, right_ka, right_ha])
                                     VRNN_pose_input.append([right_ea, right_sa, left_sa, left_ea])
 
                                 if (flag_do_demo_warn is True) and (flag_user_rep_done is False):
+                                    print("inside the length 60 condition")
                                     pose_seq_user_rep.append([right_ea, right_sa, left_sa, left_ea])
 
                                     if len(pose_seq_user_rep) == 60:
+                                        print("more inside the length 60 condition")
                                         flag_user_rep_done = True
                                 
                             else:
@@ -1405,767 +1425,810 @@ def video_capture_and_stuff():
                                         l_lobe_coords[int(_)] = [cx, cy]
                     
 
-                    # Generate the sequence using this starting pose:
-                    if (flag_green_sig is True) and (flag_red_sig is True) and (flag_generated_motion_once is False):
-                        print("pointer flag_green_sig model input")
-                        initial_pose_user = np.array(VRNN_pose_input)
-                        initial_pose_user = np.mean(initial_pose_user, axis=0)
-                        initial_pose_user = torch.from_numpy(initial_pose_user).to(dtype=torch.float32)
-
-                        print("initial_pose_user:", initial_pose_user)
-
-                        try:
-                            print("just before the main generate_sequence model...")
-                            VRNN_seq_gen = modelv1.generate_sequence(vrnn_model=model_seq_gen, initial_pose_original=initial_pose_user)
-                            VRNN_seq_gen = VRNN_seq_gen * 180
-                            print("just after the main generate_sequence model... with details of VRNN_seq_gen:", VRNN_seq_gen.shape)
-                        except Exception as e_motion_gen_1:
-                            raise Exception("e_motion_gen_1; Error in generating the sequence...", e_motion_gen_1)
-                        
-                        # try:
-                        #     print("just before making the animation")
-                        #     modelv1.create_animation(VRNN_seq_gen, output_path="animation_from.gif", num_reps=2, save_animation=True)
-                        #     print("created animation...")
-                        # except Exception as e_motion_gen_2:
-                        #     raise Exception("e_motion_gen_2; Error in animating the dance sequence...", e_motion_gen_2)
-                        
-                        # flag_generated_motion_once = True
-                        # print("flag_generated_motion_once = True")
-
-                        # After showing the animation, we give the user some time to get ready before performing
-                        # the dance motion...
-
-                        # try:
-                        #     print("inside the code to show the animation...")
-
-                        #     gif_path = "animation_from.gif"  # Replace with your GIF file path
-                        #     gif_path = "/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/animation_from.gif"
-
-                        #     image = Image.open(gif_path)
-                        #     frames = [ImageTk.PhotoImage(frame.copy()) for frame in ImageSequence.Iterator(image)]
-
-                        #     frame_idx = 0
-                        #     play_count = 0
-
-                        #     label = tk.Label(root)
-                        #     label.pack()
-
-                        #     print("just before the playing the function...")
-                        #     play_gif(frames, label, frame_idx, play_count)
-                        #     root.mainloop()
-                        #     print("just after the playing the function...")
-                        # except Exception as e_show_animation:
-                        #     print("error in showing the animation GIF:", e_show_animation)
-
-                        # Show the animation 10 times ...
-                        print("going to show the animation...")
-                        try:
-                            for gif_c_ in range(3):
-                                window.update_gif("/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/animation_from.gif")
-
-                                # time.sleep(3)
-                        except Exception as e_GIF:
-                            print("Error in showing the animation:", e_GIF)
-                        print("done showing the animation...")
-
-                        if flag_sig_movement_demo is False:
-                            sig_movement_demo = time.time()
-                            flag_sig_movement_demo = True
-                        
-                        print("pointer before getting user input for demo reaction...")
-
-                        if ((time.time() - sig_movement_demo) < 5) and (flag_do_demo_warn is False):
-                            print("inside the demo condition:", time.time() - sig_movement_demo)
-                            cv.putText(img2, "Get ready to copy the movement, you will get a small amount of time to replicate the shown dance motion", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
-                            cv.putText(img2, "Message will disappear in " + str(5 - (int(time.time() - sig_movement_demo))), (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
-                        else:
-                            print("inside the demo condition else timings:", time.time(), sig_movement_demo)
-                            flag_do_demo_warn = True
-                        
-                        if flag_do_demo_warn is True:
-                            if flag_user_rep_done is False:
-                                print("inside the user input for demo repetition condition", len(pose_seq_user_rep), len(VRNN_seq_gen))
-                                cv.putText(img2, "Number of frames left to capture...", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
-                                cv.putText(img2, str(len(VRNN_seq_gen) - len(pose_seq_user_rep)), (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
-                            else:
-                                # The code which takes care of the comparison
-                                pose_estimator = dance_comp_Dyuthi.PoseEstimator()
-
-                                pose_seq_similarity_score = pose_estimator.compare_kps(pose_seq_user_rep, VRNN_seq_gen)
-                                print("pose_seq_similarity_score:", pose_seq_similarity_score)
-                                
-                    if flag_do_demo_warn is True:
-                        for key in right_eye_main_dict:
-                            right_eye_main.append(right_eye_main_dict[key])
-                        for key in left_eye_main_dict:
-                            left_eye_main.append(left_eye_main_dict[key])
-
-                        right_eye_main = np.array(right_eye_main, np.int32)
-                        right_eye_main = right_eye_main.reshape((-1, 1, 2))
-
-                        left_eye_main = np.array(left_eye_main, np.int32)
-                        left_eye_main = left_eye_main.reshape((-1, 1, 2))
-
-                        isClosed = True
-                        color = (255, 0, 0)
-                        thickness = 2
-
-                        img = cv.polylines(img, [right_eye_main], isClosed, color, thickness)
-                        img = cv.polylines(img, [left_eye_main], isClosed, color, thickness)
-
-                        # if bounds_right[0] is not None:
-                        #     flag_re = True
-                        #
-                        # if bounds_left[0] is not None:
-                        #     flag_le = True
-                        #
-                        # if flag_re is True:
-                        #     right_eye = img_for_eye[bounds_right[0][1]:bounds_right[1][1], bounds_right[2][0]:bounds_right[3][0]]
-                        #
-                        # if flag_le is True:
-                        #     left_eye = img_for_eye[bounds_left[0][1]:bounds_left[1][1], bounds_left[2][0]:bounds_left[3][0]]
-
-                        for key in regions_re.keys():
-                            temp = regions_re[key]
-                            temp_coords = []
-
-                            for index in temp:
-                                temp_coords.append(right_eye_main_dict[index])
-
-                            regions_re[key] = temp_coords
-
-                        for key in regions_le.keys():
-                            temp = regions_le[key]
-                            temp_coords = []
-
-                            for index in temp:
-                                temp_coords.append(left_eye_main_dict[index])
-
-                            regions_le[key] = temp_coords
-
-                        for key in right_upper_lobe.keys():
-                            temp = right_upper_lobe[key]
-                            temp_coords = []
-
-                            for index in temp:
-                                if index in r_lobe_coords.keys():
-                                    temp_coords.append(r_lobe_coords[index])
-
-                                else:
-                                    temp_coords.append(right_eye_main_dict[index])
-
-                            right_upper_lobe[key] = temp_coords
-
-                        for key in right_lower_lobe.keys():
-                            temp = right_lower_lobe[key]
-                            temp_coords = []
-
-                            for index in temp:
-                                if index in r_lobe_coords.keys():
-                                    temp_coords.append(r_lobe_coords[index])
-
-                                else:
-                                    temp_coords.append(right_eye_main_dict[index])
-
-                            right_lower_lobe[key] = temp_coords
-
-                        for key in left_upper_lobe.keys():
-                            temp = left_upper_lobe[key]
-                            temp_coords = []
-
-                            for index in temp:
-                                if index in l_lobe_coords.keys():
-                                    temp_coords.append(l_lobe_coords[index])
-
-                                else:
-                                    temp_coords.append(left_eye_main_dict[index])
-
-                            left_upper_lobe[key] = temp_coords
-
-                        for key in left_lower_lobe.keys():
-                            temp = left_lower_lobe[key]
-                            temp_coords = []
-
-                            for index in temp:
-                                if index in l_lobe_coords.keys():
-                                    temp_coords.append(l_lobe_coords[index])
-
-                                else:
-                                    temp_coords.append(left_eye_main_dict[index])
-
-                            left_lower_lobe[key] = temp_coords
-
-                        print("regions_re:", regions_re)
-                        print("regions_le:", regions_le)
-                        print("right_upper_lobe:", right_upper_lobe)
-                        print("right_lower_lobe:", right_lower_lobe)
-                        print("left_upper_lobe:", left_upper_lobe)
-                        print("left_lower_lobe:", left_lower_lobe)
-
-                        rect_right = cv.boundingRect(right_eye_main)
-                        x, y, w, h = rect_right
-                        cropped_re = img[y:y + h, x:x + w].copy()
-                        right_eye_main = right_eye_main - right_eye_main.min(axis=0)
-                        mask_re = np.zeros(cropped_re.shape[:2], np.uint8)
-                        cv.drawContours(mask_re, [right_eye_main], -1, (255, 255, 255), -1, cv.LINE_AA)
-                        dst_re = cv.bitwise_and(cropped_re, cropped_re, mask=mask_re)
-                        bg = np.ones_like(cropped_re, np.uint8) * 255
-                        cv.bitwise_not(bg, bg, mask=mask_re)
-                        dst_re = bg + dst_re
-
-                        for key in regions_re.keys():
-                            temp = regions_re[key]
-                            temp_t = []
-
-                            for i in range(len(temp)):
-                                temp_t.append([temp[i][0] - x, temp[i][1] - y])
-
-                            regions_re[key] = temp_t
-
-                        for key in right_upper_lobe.keys():
-                            temp = right_upper_lobe[key]
-                            temp_t = []
-
-                            for i in range(len(temp)):
-                                temp_t.append([temp[i][0] - x, temp[i][1] - y])
-
-                            right_upper_lobe[key] = temp_t
-
-                        for key in right_lower_lobe.keys():
-                            temp = right_lower_lobe[key]
-                            temp_t = []
-
-                            for i in range(len(temp)):
-                                temp_t.append([temp[i][0] - x, temp[i][1] - y])
-
-                            right_lower_lobe[key] = temp_t
-
-                        rect_left = cv.boundingRect(left_eye_main)
-                        x, y, w, h = rect_left
-                        cropped_le = img[y:y + h, x:x + w].copy()
-                        left_eye_main = left_eye_main - left_eye_main.min(axis=0)
-                        mask_le = np.zeros(cropped_le.shape[:2], np.uint8)
-                        cv.drawContours(mask_le, [left_eye_main], -1, (255, 255, 255), -1, cv.LINE_AA)
-                        dst_le = cv.bitwise_and(cropped_le, cropped_le, mask=mask_le)
-                        bg = np.ones_like(cropped_le, np.uint8) * 255
-                        cv.bitwise_not(bg, bg, mask=mask_le)
-                        dst_le = bg + dst_le
-
-                        for key in regions_le.keys():
-                            temp = regions_le[key]
-                            temp_t = []
-
-                            for i in range(len(temp)):
-                                temp_t.append([temp[i][0] - x, temp[i][1] - y])
-
-                            regions_le[key] = temp_t
-
-                        for key in left_upper_lobe.keys():
-                            temp = left_upper_lobe[key]
-                            temp_t = []
-
-                            for i in range(len(temp)):
-                                temp_t.append([temp[i][0] - x, temp[i][1] - y])
-
-                            left_upper_lobe[key] = temp_t
-
-                        for key in left_lower_lobe.keys():
-                            temp = left_lower_lobe[key]
-                            temp_t = []
-
-                            for i in range(len(temp)):
-                                temp_t.append([temp[i][0] - x, temp[i][1] - y])
-
-                            left_lower_lobe[key] = temp_t
-
-                        kernel = np.array([[0, -1, 0], [-1, 6.5, -1], [0, -1, 0]])
-
-                        thresh = 0
-
-                        dst_re = cv.cvtColor(dst_re, cv.COLOR_BGR2GRAY)
-                        # dst_re = cv.threshold(dst_re, thresh, 255, cv.THRESH_BINARY)[1]
-                        dst_re = cv.filter2D(dst_re, -1, kernel)
-                        dst_re = cv.medianBlur(dst_re, 5)
-                        # dst_re = cv.threshold(dst_re, thresh, 255, cv.THRESH_BINARY)[1]
-                        # dst_re = cv.Canny(image=dst_re, threshold1=50, threshold2=200)
-
-                        dst_le = cv.cvtColor(dst_le, cv.COLOR_BGR2GRAY)
-                        dst_le = cv.filter2D(dst_le, -1, kernel)
-                        dst_le = cv.medianBlur(dst_le, 5)
-                        # dst_le = cv.threshold(dst_le, thresh, 255, cv.THRESH_BINARY)[1]
-                        # dst_le = cv.Sobel(src=dst_le, ddepth=cv.CV_64F, dx=1, dy=1, ksize=5)
-                        # dst_le = cv.Canny(image=dst_le, threshold1=50, threshold2=200)
-
-                        ar_re = []
-                        ar_le = []
-
-                        for key in regions_re.keys():
-                            # mask_re = np.zeros_like(dst_re)
-                            #
-                            list_coords = np.array(regions_re[key])
-                            # # print("list_coords_re:", list_coords)
-                            # cv.fillPoly(mask_re, [list_coords], 255)
-                            # mask_re = cv.threshold(mask_re, 200, 255, cv.THRESH_BINARY)[1]
-                            # masked_image = cv.bitwise_and(dst_re, mask_re)
-                            masked_image = dst_re
-
-                            # black_pixel_count_re = 0
-                            # white_pixel_count_re = 0
-
-                            pixel_count = 0
-                            values = 0
-
-                            for y in range(masked_image.shape[0]):
-                                for x in range(masked_image.shape[1]):
-                                    if cv.pointPolygonTest(list_coords, (x, y), False) >= 0:
-                                        pixel_count += 1
-                                        values += masked_image[y, x]
-
-                                        # if masked_image[y, x] < 20:
-                                        #     black_pixel_count_re += 1
-                                        #
-                                        # else:
-                                        #     white_pixel_count_re += 1
-
-                            # percents_re.append(round(black_pixel_count_re / (black_pixel_count_re + white_pixel_count_re), 2))
-                            percents_re.append(round((values / pixel_count), 2))
-                            text_temp = ":" + str(pixel_count) + ":"
-                            ar_re.append(text_temp)
-
-                        for key in regions_le.keys():
-                            # mask_le = np.zeros_like(dst_le)
-                            #
-                            list_coords = np.array(regions_le[key])
-                            # # print("list_coords_le:", list_coords)
-                            # cv.fillPoly(mask_le, [list_coords], 255)
-                            # # cv.drawContours(mask_le, [list_coords], -1, 255, 1, thickness=cv.LINE_AA)
-                            # # mask_le = cv.threshold(mask_le, 200, 255, cv.THRESH_BINARY)[1]
-                            # masked_image = cv.bitwise_and(dst_le, mask_le)
-                            masked_image = dst_le
-
-                            # black_pixel_count_le = 0
-                            # white_pixel_count_le = 0
-
-                            pixel_count = 0
-                            values = 0
-
-                            for y in range(masked_image.shape[0]):
-                                for x in range(masked_image.shape[1]):
-                                    if cv.pointPolygonTest(list_coords, (x, y), False) >= 0:
-                                        pixel_count += 1
-                                        values += masked_image[y, x]
-
-                                        # if masked_image[y, x] < 20:
-                                        #     black_pixel_count_le += 1
-                                        #
-                                        # else:
-                                        #     white_pixel_count_le += 1
-
-                            # percents_le.append(round(black_pixel_count_le / (black_pixel_count_le + white_pixel_count_le), 2))
-                            percents_le.append(round((values / pixel_count), 2))
-                            text_temp = ":" + str(pixel_count) + ":"
-                            ar_le.append(text_temp)
-
-                        index = 0
-                        for key in right_upper_lobe.keys():
-                            list_coords = np.array(right_upper_lobe[key])
-                            masked_image = dst_re
-                            pixel_count = 0
-
-                            for y in range(masked_image.shape[0]):
-                                for x in range(masked_image.shape[1]):
-                                    if cv.pointPolygonTest(list_coords, (x, y), False) >= 0:
-                                        pixel_count += 1
-
-                            ar_re[index] = str(pixel_count) + ar_re[index]
-                            index += 1
-
-                        index = 0
-                        for key in right_lower_lobe.keys():
-                            list_coords = np.array(right_lower_lobe[key])
-                            masked_image = dst_re
-                            pixel_count = 0
-
-                            for y in range(masked_image.shape[0]):
-                                for x in range(masked_image.shape[1]):
-                                    if cv.pointPolygonTest(list_coords, (x, y), False) >= 0:
-                                        pixel_count += 1
-
-                            ar_re[index] = ar_re[index] + str(pixel_count)
-                            index += 1
-
-                        index = 0
-                        for key in left_upper_lobe.keys():
-                            list_coords = np.array(left_upper_lobe[key])
-                            masked_image = dst_re
-                            pixel_count = 0
-
-                            for y in range(masked_image.shape[0]):
-                                for x in range(masked_image.shape[1]):
-                                    if cv.pointPolygonTest(list_coords, (x, y), False) >= 0:
-                                        pixel_count += 1
-
-                            ar_le[index] = str(pixel_count) + ar_le[index]
-                            index += 1
-
-                        index = 0
-                        for key in left_lower_lobe.keys():
-                            list_coords = np.array(left_lower_lobe[key])
-                            masked_image = dst_re
-                            pixel_count = 0
-
-                            for y in range(masked_image.shape[0]):
-                                for x in range(masked_image.shape[1]):
-                                    if cv.pointPolygonTest(list_coords, (x, y), False) >= 0:
-                                        pixel_count += 1
-
-                            ar_le[index] = ar_le[index] + str(pixel_count)
-                            index += 1
-
-                        print("percents_re:", percents_re)
-                        print("percents_le:", percents_le)
-
-                        # contours, _ = cv.findContours(dst_le, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE)
-                        # contour_image = np.zeros_like(dst_le)
-                        # cv.drawContours(contour_image, contours, -1, (255, 255, 255), 2)  # Draw all contours with thickness 2
-                        # # print("_:", _)
-
-                        print("cropped shapes:", dst_re.shape, dst_le.shape)
-
-                        resized_re = cv.resize(dst_re, (128, 32), interpolation=cv.INTER_LINEAR)
-                        resized_le = cv.resize(dst_le, (128, 32), interpolation=cv.INTER_LINEAR)
-
-                        # TODO: Uncomment this for inference
-                        if num_frames != 0:
-                            plain_raw_video[0].append(resized_re)
-                            plain_raw_video[1].append(resized_le)
-
-                            num_frames -= 1
-
-                        else:
-                            # # eye_crop_window = 32
-                            # eye_right_cropped_model_input = np.array(eye_right_cropped_model_input)
-                            # eye_left_cropped_model_input = np.array(eye_left_cropped_model_input)
-                            #
-                            # # print("eye_right_cropped_model_input:", eye_right_cropped_model_input.shape)
-                            # # print("eye_left_cropped_model_input:", eye_left_cropped_model_input.shape)
-                            #
-                            # # TODO: Enough for the GPU processing
-                            # # last_layer_from_upper_branch, softmaxed_layer = EyeVidPre_and_ViViT.PreProcessandFreezedOutput(
-                            # #     eye_right_cropped_model_input, eye_left_cropped_model_input)
-                            # # print("last_layer_from_upper_branch:", last_layer_from_upper_branch)
-
-                            for frame_counter in range(len(plain_raw_video[0])):
-                                if (frame_counter == (len(plain_raw_video[0]) - 1)) and (music_queue.empty() is False):
-                                    try:
-                                        music_queue.get()
-                                        print("music_queue status:", music_queue.empty())
-                                    except Exception as e:
-                                        print("mp 2, Error in music queue handling:", e)
-                                        raise Exception("mp 2, Error in music queue handling:")
-
-                                resized_re = plain_raw_video[0][frame_counter]
-                                resized_le = plain_raw_video[1][frame_counter]
-
-                                print("type of resized re:", type(resized_re))
-
-                                otsu_threshold, resized_re_OTSU = cv.threshold(
-                                    resized_re, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU,
-                                )
-                                otsu_threshold_2, resized_le_OTSU = cv.threshold(
-                                    resized_le, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU,
-                                )
-
-                                resized_re_t = np.expand_dims(resized_re, axis=-1)
-                                resized_le_t = np.expand_dims(resized_le, axis=-1)
-
-                                resized_re_OTSU = np.expand_dims(resized_re_OTSU, axis=-1)
-                                resized_le_OTSU = np.expand_dims(resized_le_OTSU, axis=-1)
-
-                                resized_re_t = np.concatenate((resized_re_t, resized_re_OTSU), axis=-1)
-                                resized_le_t = np.concatenate((resized_le_t, resized_le_OTSU), axis=-1)
-
-                                # Repetition needs to be changed
-                                resized_re_KMeans = KMeans_Image(resized_re)
-                                resized_le_KMeans = KMeans_Image(resized_le)
-
-                                resized_re_KMeans = np.expand_dims(resized_re_KMeans, axis=-1)
-                                resized_le_KMeans = np.expand_dims(resized_le_KMeans, axis=-1)
-
-                                resized_re_t = np.concatenate((resized_re_t, resized_re_KMeans), axis=-1)
-                                resized_le_t = np.concatenate((resized_le_t, resized_le_KMeans), axis=-1)
-
-                                print("cropped shapes:", resized_re.shape, resized_le.shape)
-                                print("cropped shapes in _t:", resized_re_t.shape, resized_le_t.shape)
-
-                                reward = 0
-                                reward_directional = 0
-
-                                # Subtraction for OTSU binarization
-                                if resized_re_OTSU_before is not None:
-                                    resized_re_OTSU_sub = cv.subtract(resized_re_OTSU, resized_re_OTSU_before)
-                                    resized_re_OTSU_sub = np.where(resized_re_OTSU_sub > 0, 255, 0).astype(np.uint8)
-
-                                    wp_c = np.sum(resized_re_OTSU_sub == 255)
-                                    r_w = wp_c / (32 * 128)
-                                    r_b = 1 - r_w
-                                    reward += r_b
-
-                                    num_white_curr = np.where(resized_re_OTSU > 0, 255, 0).astype(np.uint8)
-                                    num_white_curr = np.sum(num_white_curr == 255) / (32 * 128)
-
-                                    num_white_before = np.where(resized_re_OTSU_before > 0, 255, 0).astype(np.uint8)
-                                    num_white_before = np.sum(num_white_before == 255) / (32 * 128)
-
-                                    direction = -1 if (num_white_curr - num_white_before) < 0 else 1
-
-                                    reward_directional += direction * reward
-
-                                    cv.imshow("right_eye OTSU subtracted", resized_re_OTSU_sub)
-                                    resized_re_OTSU_before = resized_re_OTSU
-                                else:
-                                    resized_re_OTSU_before = resized_re_OTSU
-
-                                if resized_le_OTSU_before is not None:
-                                    resized_le_OTSU_sub = cv.subtract(resized_le_OTSU, resized_le_OTSU_before)
-                                    resized_le_OTSU_sub = np.where(resized_le_OTSU_sub > 0, 255, 0).astype(np.uint8)
-
-                                    wp_c = np.sum(resized_le_OTSU_sub == 255)
-                                    r_w = wp_c / (32 * 128)
-                                    r_b = 1 - r_w
-                                    reward += r_b
-
-                                    num_white_curr = np.where(resized_le_OTSU > 0, 255, 0).astype(np.uint8)
-                                    num_white_curr = np.sum(num_white_curr == 255) / (32 * 128)
-
-                                    num_white_before = np.where(resized_le_OTSU_before > 0, 255, 0).astype(np.uint8)
-                                    num_white_before = np.sum(num_white_before == 255) / (32 * 128)
-
-                                    direction = -1 if (num_white_curr - num_white_before) < 0 else 1
-
-                                    reward_directional += direction * reward
-
-                                    cv.imshow("left_eye OTSU subtracted", resized_le_OTSU_sub)
-                                    print("something very inner:", "left_eye OTSU subtracted")
-
-                                    resized_le_OTSU_before = resized_le_OTSU
-                                else:
-                                    resized_le_OTSU_before = resized_le_OTSU
-
-                                reward /= 2
-                                reward_directional /= 2
-
-                                print("reward from the eyes:", reward)
-
-                                reward_avg += reward
-                                avgs_unit.append(reward_directional)
-
-                                eye_right_cropped_model_input.append(resized_re_t)
-                                eye_left_cropped_model_input.append(resized_le_t)
-
-                            eye_right_cropped_model_input = np.array(eye_right_cropped_model_input)
-                            eye_left_cropped_model_input = np.array(eye_left_cropped_model_input)
-
-                            num_frames = 32
-                            reward_avg = reward_avg / num_frames  # equal weights to all the frames...
-
-                            '''Concatenate images now'''
-                            start_2 = time.time()
-                            start_3 = time.time()
-                            concat_frame_left = concat_images(eye_right_cropped_model_input)
-                            end_3 = time.time()
-
-                            concat_frame_left_save = cv.normalize(concat_frame_left, None, 0, 255, cv.NORM_MINMAX)
-                            concat_frame_left_save = concat_frame_left_save.astype(np.uint8)
-
-                            start_4 = time.time()
-                            concat_frame_right = concat_images(eye_left_cropped_model_input)
-                            end_4 = time.time()
-                            end_2 = time.time()
-
-                            concat_frame_right_save = cv.normalize(concat_frame_right, None, 0, 255, cv.NORM_MINMAX)
-                            concat_frame_right_save = concat_frame_right_save.astype(np.uint8)
-
-                            cv.imwrite(f"ConcatEyeImages/right_eye_{window_num}.png", concat_frame_right_save)
-                            cv.imwrite(f"ConcatEyeImages/left_eye_{window_num}.png", concat_frame_left_save)
-
-                            print("time for concat function left:", end_3 - start_3)
-                            print("time for concat function right:", end_4 - start_4)
-                            print("time for both concat functions:", end_2 - start_2)
-
-                            frame_arr = [concat_frame_right, concat_frame_left, reward_avg]
-                            print("frame_arr dimensions:", len(frame_arr))
-                            print("concat_frame_right dimensions:", len(concat_frame_right))
-                            print("concat_frame_right:", concat_frame_right)
-                            print("reward_avg:", reward_avg)
-                            print(f"\nreward_avg--- {reward_avg}", file=open(log_file, 'a'))
-
-                            if prev_state is None:
-                                print("prev state is None")
-                                prev_state = [concat_frame_right, concat_frame_left]
-                                print("pointer 1 after reward_avg")
-                            else:
-                                # The action state calculation using the concatenated images as input
-                                start_after_concat = time.time()
-                                print("pointer 2 after reward_avg")
-                                # output_after_dense, final_output = EyeVidPre_and_ViViT.PreProcessandFreezedOutput_MobileNetV1(
-                                #     concat_frame_right, concat_frame_left)
-
-                                curr_state = [concat_frame_right, concat_frame_left]
-                                print("pointer 3 after reward_avg:", curr_state[0].shape, prev_state[0].shape)
-
-                                # Process the right eye input for prev
-                                inputs = image_processor_1(prev_state[0], return_tensors="pt")
-                                print("pointer 4 after reward_avg:")
-                                with torch.no_grad():
-                                    output_right_eye_prev = model_1(**inputs).last_hidden_state
-                                    print("pointer 5 after reward_avg", output_right_eye_prev.shape)
-                                # Process the left eye input for prev
-                                inputs = image_processor_1(prev_state[1], return_tensors="pt")
-                                print("pointer 6 after reward_avg")
-                                with torch.no_grad():
-                                    output_left_eye_prev = model_1(**inputs).last_hidden_state
-                                    print("pointer 7 after reward_avg")
-
-                                output_right_eye_prev = output_right_eye_prev.detach().numpy()
-                                print("pointer 8 after reward_avg")
-                                output_right_eye_prev = tf.convert_to_tensor(output_right_eye_prev, dtype=tf.float32)
-                                print("pointer 9 after reward_avg")
-                                output_left_eye_prev = output_left_eye_prev.detach().numpy()
-                                print("pointer 10 after reward_avg")
-                                output_left_eye_prev = tf.convert_to_tensor(output_left_eye_prev, dtype=tf.float32)
-                                print("pointer 11 after reward_avg")
-
-                                # Process the right eye input for curr
-                                inputs = image_processor_1(curr_state[0], return_tensors="pt")
-                                print("pointer 12 after reward_avg")
-                                with torch.no_grad():
-                                    output_right_eye_curr = model_1(**inputs).last_hidden_state
-                                    print("pointer 13 after reward_avg")
-                                # Process the left eye input for curr
-                                inputs = image_processor_1(curr_state[1], return_tensors="pt")
-                                print("pointer 14 after reward_avg")
-                                with torch.no_grad():
-                                    output_left_eye_curr = model_1(**inputs).last_hidden_state
-                                    print("pointer 15 after reward_avg")
-
-                                output_right_eye_curr = output_right_eye_curr.detach().numpy()
-                                print("pointer 16 after reward_avg")
-                                output_right_eye_curr = tf.convert_to_tensor(output_right_eye_curr, dtype=tf.float32)
-                                print("pointer 17 after reward_avg")
-                                output_left_eye_curr = output_left_eye_curr.detach().numpy()
-                                print("pointer 18 after reward_avg")
-                                output_left_eye_curr = tf.convert_to_tensor(output_left_eye_curr, dtype=tf.float32)
-                                print("pointer 19 after reward_avg")
-
-                                # prev_state = [np.expand_dims(output_right_eye_prev, axis=0),
-                                #               np.expand_dims(output_left_eye_prev, axis=0)]
-                                prev_state = [output_right_eye_prev, output_left_eye_prev]
-                                print("pointer 20 after reward_avg")
-
-                                final_output = policy(prev_state, ou_noise)
-                                print("pointer 21 after reward_avg")
-                                end_after_concat = time.time()
-                                print("pointer 22 after reward_avg")
-
-                                print("final_output:", final_output)
-                                print("time taken for layer after:", end_after_concat - start_after_concat)
-
-                                action = int(np.argmax(final_output))  # replace with policy function
-                                print("pointer 23 after reward_avg")
-                                # action = int(torch.argmax(final_output))  # replace with policy function
-                                alpha = 1
-                                beta = 1
-                                gamma = 10
-                                
-                                # print("reward just before buffer learn setting:", reward)
-
-                                # reward = alpha*reward_avg + beta*calculate_temporal_smoothness_reward(avgs_unit)  # New reward function...
-                                if pose_seq_similarity_score is None:
-                                    print("some error in pose_seq_similarity_score assignment position...")
-                                else:
-                                    reward = alpha*reward_avg + beta*calculate_temporal_smoothness_reward(avgs_unit) + gamma*pose_seq_similarity_score  # New reward function..., with dance comparison
-
-                                print(f"\ntotal reward--- {reward}", file=open(log_file, 'a'))
-
-                                reward_avg = 0
-                                avgs_unit = []
-                                print("pointer 24 after reward_avg")
-
-                                print("After completion of action calculation:", action)
-                                action_arr = [0] * num_actions
-                                print("pointer 25 after reward_avg")
-                                action_arr[action] = 1
-                                print("pointer 26 after reward_avg")
-
-                                print("shape of action vector before buffer.record:", action_arr)
-                                action_arr = np.array(action_arr)
-                                print("pointer 27 after reward_avg")
-                                action_arr = action_arr.reshape(1, 6)
-                                print("pointer 28 after reward_avg")
-                                print("shape of action vector before buffer.record after expanding:", action_arr, action_arr.shape)
-
-                                print("After completion of reward calculation:", reward)
-
-                                # curr_state = [np.expand_dims(output_right_eye_curr, axis=0),
-                                #               np.expand_dims(output_left_eye_curr, axis=0)]
-                                curr_state_ = [output_right_eye_curr, output_left_eye_curr]
-                                print("pointer 29 after reward_avg")
-
-                                print("After completion of curr_state calculation:", type(curr_state_))
-
-                                print("shape of output_right_eye_prev:", output_right_eye_prev.shape)
-
-                                # buffer.record((np.array(prev_state), np.array([action]), np.array([reward]), np.array(curr_state)))
-                                # buffer.record((np.array(output_right_eye_prev), np.array(output_left_eye_prev),
-                                #                action, reward,
-                                #                np.array(output_right_eye_curr), np.array(output_left_eye_curr)))
-                                buffer.record((np.array(output_right_eye_prev), np.array(output_left_eye_prev),
-                                            action_arr, reward,
-                                            np.array(output_right_eye_curr), np.array(output_left_eye_curr)))
-                                print("pointer 30 after reward_avg")
-                                
-                                # plt.imsave("output_right_eye_prev.png", output_right_eye_prev)
-                                # plt.imsave("output_left_eye_prev.png", output_left_eye_prev)
-                                # plt.imsave("output_right_eye_curr.png", output_right_eye_curr)
-                                # plt.imsave("output_left_eye_curr.png", output_left_eye_curr)
-                                # print(f"\nreward: {reward}", file=open(log_file, 'a'))
-
-                                buffer.learn()
-                                print("pointer 31 after reward_avg")
-
-                                print("pointer actor model 3")
-                                update_target(target_actor, actor_model, tau)
-                                print("pointer 32 after reward_avg")
-
-                                print("pointer critic model 3")
-                                update_target(target_critic, critic_model, tau)
-                                print("pointer 33 after reward_avg")
-
-                                prev_state = curr_state
-                                print("pointer 34 after reward_avg")
-
-                                print("music_index:", action)
-
-                                # frame_queue.put(frame_arr, block=True)
-                                # # num_frames = 32
-
-                                # Muisc playing part
-                                # current_music_index = (window_num % 5)
-                                current_music_index = action
-                                print("pointer 35 after reward_avg:", current_music_index)
-                                current_music_file = music_files[current_music_index]
-                                print("pointer 36 after reward_avg:", current_music_file)
-                                print("current_music_file:", current_music_file)
+                        # Generate the sequence using this starting pose:
+                        # if len(VRNN_pose_input) != 0:
+                        if True:
+                            if (flag_green_sig is True) and (flag_red_sig is True) and (flag_generated_motion_once is False):
+                                if prev_state is not None:
+                                    print("reached the condition where not the first iteration first:", type(pose_seq_user_rep_5s), len(pose_seq_user_rep_5s))
+                                    VRNN_pose_input = pose_seq_user_rep_5s
+                                    print("reached the condition where not the first iteration second:", pose_seq_user_rep_5s)
+
+                                print("pointer flag_green_sig model input:", VRNN_pose_input)
+                                initial_pose_user = np.array(VRNN_pose_input)
+                                print("after VRNN_pose_input isplay:", initial_pose_user)
+                                initial_pose_user = np.mean(initial_pose_user, axis=0)
+                                initial_pose_user = torch.from_numpy(initial_pose_user).to(dtype=torch.float32)
+
+                                print("initial_pose_user:", initial_pose_user)
 
                                 try:
-                                    music_queue.put(music_files[current_music_index])
-                                    print("pointer 37 after reward_avg")
-                                except Exception as e:
-                                    print("mp 3, Exception in music queue handling:", e)
-                                    raise Exception("mp 3, Exception in music queue handling:")
+                                    print("just before the main generate_sequence model...")
+                                    VRNN_seq_gen = modelv1.generate_sequence(vrnn_model=model_seq_gen, initial_pose_original=initial_pose_user)
+                                    VRNN_seq_gen = VRNN_seq_gen * 180
+                                    print("just after the main generate_sequence model... with details of VRNN_seq_gen:", VRNN_seq_gen.shape)
+                                except Exception as e_motion_gen_1:
+                                    raise Exception("e_motion_gen_1; Error in generating the sequence...", e_motion_gen_1)
+                                
+                                # try:
+                                #     print("just before making the animation")
+                                #     modelv1.create_animation(VRNN_seq_gen, output_path="animation_from.gif", num_reps=2, save_animation=True)
+                                #     print("created animation...")
+                                # except Exception as e_motion_gen_2:
+                                #     raise Exception("e_motion_gen_2; Error in animating the dance sequence...", e_motion_gen_2)
+                                
+                                # flag_generated_motion_once = True
+                                # print("flag_generated_motion_once = True")
 
-                                reward = 0
+                                # After showing the animation, we give the user some time to get ready before performing
+                                # the dance motion...
+
+                                # try:
+                                #     print("inside the code to show the animation...")
+
+                                #     gif_path = "animation_from.gif"  # Replace with your GIF file path
+                                #     gif_path = "/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/animation_from.gif"
+
+                                #     image = Image.open(gif_path)
+                                #     frames = [ImageTk.PhotoImage(frame.copy()) for frame in ImageSequence.Iterator(image)]
+
+                                #     frame_idx = 0
+                                #     play_count = 0
+
+                                #     label = tk.Label(root)
+                                #     label.pack()
+
+                                #     print("just before the playing the function...")
+                                #     play_gif(frames, label, frame_idx, play_count)
+                                #     root.mainloop()
+                                #     print("just after the playing the function...")
+                                # except Exception as e_show_animation:
+                                #     print("error in showing the animation GIF:", e_show_animation)
+
+                                # Show the animation 3 times ...
+                                print("going to show the animation...")
+                                if flag_shown_GIF_loop_once is False:
+                                    try:
+                                        gif_path = "/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/animation_from.gif"  # Replace with your GIF file path
+                                        gif = imageio.mimread(gif_path)
+
+                                        # Convert frames to OpenCV format
+                                        frames = [cv.cvtColor(frame, cv.COLOR_RGB2BGR) for frame in gif]
+                                        frames = frames[:30]
+
+                                        window_name = "GIF Player"
+                                        cv.namedWindow(window_name, cv.WINDOW_NORMAL)
+
+                                        # Play the GIF 2 times
+                                        for _ in range(3):
+                                            for frame in frames:
+                                                cv.imshow(window_name, frame)
+                                                if cv.waitKey(100) & 0xFF == ord("q"):  # Press 'q' to exit early
+                                                    break
+                                        
+                                        cv.destroyWindow(window_name)
+                                        
+                                        flag_shown_GIF_loop_once = True
+                                        
+                                        # for gif_c_ in range(3):
+                                        #     window.update_gif("/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/animation_from.gif")
+
+                                        #     # time.sleep(3)
+                                    except Exception as e_GIF:
+                                        print("Error in showing the animation:", e_GIF)
+                                print("done showing the animation...")
+
+                                if flag_sig_movement_demo is False:
+                                    sig_movement_demo = time.time()
+                                    flag_sig_movement_demo = True
+                                
+                                print("pointer before getting user input for demo reaction...")
+
+                                if ((time.time() - sig_movement_demo) < 5) and (flag_do_demo_warn is False):
+                                    print("inside the demo condition:", time.time() - sig_movement_demo)
+                                    cv.putText(img2, "Get ready to copy the movement, you will get a small amount of time to replicate the shown dance motion", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
+                                    cv.putText(img2, "Message will disappear in " + str(5 - (int(time.time() - sig_movement_demo))), (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
+                                else:
+                                    print("inside the demo condition else timings:", time.time(), sig_movement_demo)
+                                    flag_do_demo_warn = True
+                                
+                                if flag_do_demo_warn is True:
+                                    remaining_frames = len(VRNN_seq_gen) - len(pose_seq_user_rep)
+
+                                    if flag_user_rep_done is False:
+                                        print("inside the user input for demo repetition condition", len(pose_seq_user_rep), len(VRNN_seq_gen), "ep:", ep)
+                                        cv.putText(img2, "Number of frames left to capture...", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
+                                        cv.putText(img2, str(remaining_frames), (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
+
+                                        print("remaining_frames is:", remaining_frames)
+
+                                        if remaining_frames == 0:
+                                            print("remaining_frames is 0")
+                                        elif len(VRNN_seq_gen) - len(pose_seq_user_rep) == 1:
+                                            print("remaining_frames is 1")
+                                    
+                                    if (flag_user_rep_done is True) or (remaining_frames == 0):
+                                        print("inside the condition to compare the dance motions")
+                                        # The code which takes care of the comparison
+                                        pose_estimator = dance_comp_Dyuthi.PoseEstimator()
+
+                                        pose_seq_similarity_score = pose_estimator.compare_kps(pose_seq_user_rep, VRNN_seq_gen)['average']
+                                        print("pose_seq_similarity_score:", pose_seq_similarity_score)
+                                        
+                            if flag_do_demo_warn is True:
+                                for key in right_eye_main_dict:
+                                    right_eye_main.append(right_eye_main_dict[key])
+                                for key in left_eye_main_dict:
+                                    left_eye_main.append(left_eye_main_dict[key])
+
+                                right_eye_main = np.array(right_eye_main, np.int32)
+                                right_eye_main = right_eye_main.reshape((-1, 1, 2))
+
+                                left_eye_main = np.array(left_eye_main, np.int32)
+                                left_eye_main = left_eye_main.reshape((-1, 1, 2))
+
+                                isClosed = True
+                                color = (255, 0, 0)
+                                thickness = 2
+
+                                img = cv.polylines(img, [right_eye_main], isClosed, color, thickness)
+                                img = cv.polylines(img, [left_eye_main], isClosed, color, thickness)
+
+                                # if bounds_right[0] is not None:
+                                #     flag_re = True
+                                #
+                                # if bounds_left[0] is not None:
+                                #     flag_le = True
+                                #
+                                # if flag_re is True:
+                                #     right_eye = img_for_eye[bounds_right[0][1]:bounds_right[1][1], bounds_right[2][0]:bounds_right[3][0]]
+                                #
+                                # if flag_le is True:
+                                #     left_eye = img_for_eye[bounds_left[0][1]:bounds_left[1][1], bounds_left[2][0]:bounds_left[3][0]]
+
+                                for key in regions_re.keys():
+                                    temp = regions_re[key]
+                                    temp_coords = []
+
+                                    for index in temp:
+                                        temp_coords.append(right_eye_main_dict[index])
+
+                                    regions_re[key] = temp_coords
+
+                                for key in regions_le.keys():
+                                    temp = regions_le[key]
+                                    temp_coords = []
+
+                                    for index in temp:
+                                        temp_coords.append(left_eye_main_dict[index])
+
+                                    regions_le[key] = temp_coords
+
+                                for key in right_upper_lobe.keys():
+                                    temp = right_upper_lobe[key]
+                                    temp_coords = []
+
+                                    for index in temp:
+                                        if index in r_lobe_coords.keys():
+                                            temp_coords.append(r_lobe_coords[index])
+
+                                        else:
+                                            temp_coords.append(right_eye_main_dict[index])
+
+                                    right_upper_lobe[key] = temp_coords
+
+                                for key in right_lower_lobe.keys():
+                                    temp = right_lower_lobe[key]
+                                    temp_coords = []
+
+                                    for index in temp:
+                                        if index in r_lobe_coords.keys():
+                                            temp_coords.append(r_lobe_coords[index])
+
+                                        else:
+                                            temp_coords.append(right_eye_main_dict[index])
+
+                                    right_lower_lobe[key] = temp_coords
+
+                                for key in left_upper_lobe.keys():
+                                    temp = left_upper_lobe[key]
+                                    temp_coords = []
+
+                                    for index in temp:
+                                        if index in l_lobe_coords.keys():
+                                            temp_coords.append(l_lobe_coords[index])
+
+                                        else:
+                                            temp_coords.append(left_eye_main_dict[index])
+
+                                    left_upper_lobe[key] = temp_coords
+
+                                for key in left_lower_lobe.keys():
+                                    temp = left_lower_lobe[key]
+                                    temp_coords = []
+
+                                    for index in temp:
+                                        if index in l_lobe_coords.keys():
+                                            temp_coords.append(l_lobe_coords[index])
+
+                                        else:
+                                            temp_coords.append(left_eye_main_dict[index])
+
+                                    left_lower_lobe[key] = temp_coords
+
+                                print("regions_re:", regions_re)
+                                print("regions_le:", regions_le)
+                                print("right_upper_lobe:", right_upper_lobe)
+                                print("right_lower_lobe:", right_lower_lobe)
+                                print("left_upper_lobe:", left_upper_lobe)
+                                print("left_lower_lobe:", left_lower_lobe)
+
+                                rect_right = cv.boundingRect(right_eye_main)
+                                x, y, w, h = rect_right
+                                cropped_re = img[y:y + h, x:x + w].copy()
+                                right_eye_main = right_eye_main - right_eye_main.min(axis=0)
+                                mask_re = np.zeros(cropped_re.shape[:2], np.uint8)
+                                cv.drawContours(mask_re, [right_eye_main], -1, (255, 255, 255), -1, cv.LINE_AA)
+                                dst_re = cv.bitwise_and(cropped_re, cropped_re, mask=mask_re)
+                                bg = np.ones_like(cropped_re, np.uint8) * 255
+                                cv.bitwise_not(bg, bg, mask=mask_re)
+                                dst_re = bg + dst_re
+
+                                for key in regions_re.keys():
+                                    temp = regions_re[key]
+                                    temp_t = []
+
+                                    for i in range(len(temp)):
+                                        temp_t.append([temp[i][0] - x, temp[i][1] - y])
+
+                                    regions_re[key] = temp_t
+
+                                for key in right_upper_lobe.keys():
+                                    temp = right_upper_lobe[key]
+                                    temp_t = []
+
+                                    for i in range(len(temp)):
+                                        temp_t.append([temp[i][0] - x, temp[i][1] - y])
+
+                                    right_upper_lobe[key] = temp_t
+
+                                for key in right_lower_lobe.keys():
+                                    temp = right_lower_lobe[key]
+                                    temp_t = []
+
+                                    for i in range(len(temp)):
+                                        temp_t.append([temp[i][0] - x, temp[i][1] - y])
+
+                                    right_lower_lobe[key] = temp_t
+
+                                rect_left = cv.boundingRect(left_eye_main)
+                                x, y, w, h = rect_left
+                                cropped_le = img[y:y + h, x:x + w].copy()
+                                left_eye_main = left_eye_main - left_eye_main.min(axis=0)
+                                mask_le = np.zeros(cropped_le.shape[:2], np.uint8)
+                                cv.drawContours(mask_le, [left_eye_main], -1, (255, 255, 255), -1, cv.LINE_AA)
+                                dst_le = cv.bitwise_and(cropped_le, cropped_le, mask=mask_le)
+                                bg = np.ones_like(cropped_le, np.uint8) * 255
+                                cv.bitwise_not(bg, bg, mask=mask_le)
+                                dst_le = bg + dst_le
+
+                                for key in regions_le.keys():
+                                    temp = regions_le[key]
+                                    temp_t = []
+
+                                    for i in range(len(temp)):
+                                        temp_t.append([temp[i][0] - x, temp[i][1] - y])
+
+                                    regions_le[key] = temp_t
+
+                                for key in left_upper_lobe.keys():
+                                    temp = left_upper_lobe[key]
+                                    temp_t = []
+
+                                    for i in range(len(temp)):
+                                        temp_t.append([temp[i][0] - x, temp[i][1] - y])
+
+                                    left_upper_lobe[key] = temp_t
+
+                                for key in left_lower_lobe.keys():
+                                    temp = left_lower_lobe[key]
+                                    temp_t = []
+
+                                    for i in range(len(temp)):
+                                        temp_t.append([temp[i][0] - x, temp[i][1] - y])
+
+                                    left_lower_lobe[key] = temp_t
+
+                                kernel = np.array([[0, -1, 0], [-1, 6.5, -1], [0, -1, 0]])
+
+                                thresh = 0
+
+                                dst_re = cv.cvtColor(dst_re, cv.COLOR_BGR2GRAY)
+                                # dst_re = cv.threshold(dst_re, thresh, 255, cv.THRESH_BINARY)[1]
+                                dst_re = cv.filter2D(dst_re, -1, kernel)
+                                dst_re = cv.medianBlur(dst_re, 5)
+                                # dst_re = cv.threshold(dst_re, thresh, 255, cv.THRESH_BINARY)[1]
+                                # dst_re = cv.Canny(image=dst_re, threshold1=50, threshold2=200)
+
+                                dst_le = cv.cvtColor(dst_le, cv.COLOR_BGR2GRAY)
+                                dst_le = cv.filter2D(dst_le, -1, kernel)
+                                dst_le = cv.medianBlur(dst_le, 5)
+                                # dst_le = cv.threshold(dst_le, thresh, 255, cv.THRESH_BINARY)[1]
+                                # dst_le = cv.Sobel(src=dst_le, ddepth=cv.CV_64F, dx=1, dy=1, ksize=5)
+                                # dst_le = cv.Canny(image=dst_le, threshold1=50, threshold2=200)
+
+                                ar_re = []
+                                ar_le = []
+
+                                for key in regions_re.keys():
+                                    # mask_re = np.zeros_like(dst_re)
+                                    #
+                                    list_coords = np.array(regions_re[key])
+                                    # # print("list_coords_re:", list_coords)
+                                    # cv.fillPoly(mask_re, [list_coords], 255)
+                                    # mask_re = cv.threshold(mask_re, 200, 255, cv.THRESH_BINARY)[1]
+                                    # masked_image = cv.bitwise_and(dst_re, mask_re)
+                                    masked_image = dst_re
+
+                                    # black_pixel_count_re = 0
+                                    # white_pixel_count_re = 0
+
+                                    pixel_count = 0
+                                    values = 0
+
+                                    for y in range(masked_image.shape[0]):
+                                        for x in range(masked_image.shape[1]):
+                                            if cv.pointPolygonTest(list_coords, (x, y), False) >= 0:
+                                                pixel_count += 1
+                                                values += masked_image[y, x]
+
+                                                # if masked_image[y, x] < 20:
+                                                #     black_pixel_count_re += 1
+                                                #
+                                                # else:
+                                                #     white_pixel_count_re += 1
+
+                                    # percents_re.append(round(black_pixel_count_re / (black_pixel_count_re + white_pixel_count_re), 2))
+                                    percents_re.append(round((values / pixel_count), 2))
+                                    text_temp = ":" + str(pixel_count) + ":"
+                                    ar_re.append(text_temp)
+
+                                for key in regions_le.keys():
+                                    # mask_le = np.zeros_like(dst_le)
+                                    #
+                                    list_coords = np.array(regions_le[key])
+                                    # # print("list_coords_le:", list_coords)
+                                    # cv.fillPoly(mask_le, [list_coords], 255)
+                                    # # cv.drawContours(mask_le, [list_coords], -1, 255, 1, thickness=cv.LINE_AA)
+                                    # # mask_le = cv.threshold(mask_le, 200, 255, cv.THRESH_BINARY)[1]
+                                    # masked_image = cv.bitwise_and(dst_le, mask_le)
+                                    masked_image = dst_le
+
+                                    # black_pixel_count_le = 0
+                                    # white_pixel_count_le = 0
+
+                                    pixel_count = 0
+                                    values = 0
+
+                                    for y in range(masked_image.shape[0]):
+                                        for x in range(masked_image.shape[1]):
+                                            if cv.pointPolygonTest(list_coords, (x, y), False) >= 0:
+                                                pixel_count += 1
+                                                values += masked_image[y, x]
+
+                                                # if masked_image[y, x] < 20:
+                                                #     black_pixel_count_le += 1
+                                                #
+                                                # else:
+                                                #     white_pixel_count_le += 1
+
+                                    # percents_le.append(round(black_pixel_count_le / (black_pixel_count_le + white_pixel_count_le), 2))
+                                    percents_le.append(round((values / pixel_count), 2))
+                                    text_temp = ":" + str(pixel_count) + ":"
+                                    ar_le.append(text_temp)
+
+                                index = 0
+                                for key in right_upper_lobe.keys():
+                                    list_coords = np.array(right_upper_lobe[key])
+                                    masked_image = dst_re
+                                    pixel_count = 0
+
+                                    for y in range(masked_image.shape[0]):
+                                        for x in range(masked_image.shape[1]):
+                                            if cv.pointPolygonTest(list_coords, (x, y), False) >= 0:
+                                                pixel_count += 1
+
+                                    ar_re[index] = str(pixel_count) + ar_re[index]
+                                    index += 1
+
+                                index = 0
+                                for key in right_lower_lobe.keys():
+                                    list_coords = np.array(right_lower_lobe[key])
+                                    masked_image = dst_re
+                                    pixel_count = 0
+
+                                    for y in range(masked_image.shape[0]):
+                                        for x in range(masked_image.shape[1]):
+                                            if cv.pointPolygonTest(list_coords, (x, y), False) >= 0:
+                                                pixel_count += 1
+
+                                    ar_re[index] = ar_re[index] + str(pixel_count)
+                                    index += 1
+
+                                index = 0
+                                for key in left_upper_lobe.keys():
+                                    list_coords = np.array(left_upper_lobe[key])
+                                    masked_image = dst_re
+                                    pixel_count = 0
+
+                                    for y in range(masked_image.shape[0]):
+                                        for x in range(masked_image.shape[1]):
+                                            if cv.pointPolygonTest(list_coords, (x, y), False) >= 0:
+                                                pixel_count += 1
+
+                                    ar_le[index] = str(pixel_count) + ar_le[index]
+                                    index += 1
+
+                                index = 0
+                                for key in left_lower_lobe.keys():
+                                    list_coords = np.array(left_lower_lobe[key])
+                                    masked_image = dst_re
+                                    pixel_count = 0
+
+                                    for y in range(masked_image.shape[0]):
+                                        for x in range(masked_image.shape[1]):
+                                            if cv.pointPolygonTest(list_coords, (x, y), False) >= 0:
+                                                pixel_count += 1
+
+                                    ar_le[index] = ar_le[index] + str(pixel_count)
+                                    index += 1
+
+                                print("percents_re:", percents_re)
+                                print("percents_le:", percents_le)
+
+                                # contours, _ = cv.findContours(dst_le, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE)
+                                # contour_image = np.zeros_like(dst_le)
+                                # cv.drawContours(contour_image, contours, -1, (255, 255, 255), 2)  # Draw all contours with thickness 2
+                                # # print("_:", _)
+
+                                print("cropped shapes:", dst_re.shape, dst_le.shape)
+
+                                resized_re = cv.resize(dst_re, (128, 32), interpolation=cv.INTER_LINEAR)
+                                resized_le = cv.resize(dst_le, (128, 32), interpolation=cv.INTER_LINEAR)
+
+                                # TODO: Uncomment this for inference
+                                if num_frames != 0:
+                                    plain_raw_video[0].append(resized_re)
+                                    plain_raw_video[1].append(resized_le)
+
+                                    num_frames -= 1
+
+                                else:
+                                    # # eye_crop_window = 32
+                                    # eye_right_cropped_model_input = np.array(eye_right_cropped_model_input)
+                                    # eye_left_cropped_model_input = np.array(eye_left_cropped_model_input)
+                                    #
+                                    # # print("eye_right_cropped_model_input:", eye_right_cropped_model_input.shape)
+                                    # # print("eye_left_cropped_model_input:", eye_left_cropped_model_input.shape)
+                                    #
+                                    # # TODO: Enough for the GPU processing
+                                    # # last_layer_from_upper_branch, softmaxed_layer = EyeVidPre_and_ViViT.PreProcessandFreezedOutput(
+                                    # #     eye_right_cropped_model_input, eye_left_cropped_model_input)
+                                    # # print("last_layer_from_upper_branch:", last_layer_from_upper_branch)
+
+                                    for frame_counter in range(len(plain_raw_video[0])):
+                                        if (frame_counter == (len(plain_raw_video[0]) - 1)) and (music_queue.empty() is False):
+                                            try:
+                                                music_queue.get()
+                                                print("music_queue status:", music_queue.empty())
+                                            except Exception as e:
+                                                print("mp 2, Error in music queue handling:", e)
+                                                raise Exception("mp 2, Error in music queue handling:")
+
+                                        resized_re = plain_raw_video[0][frame_counter]
+                                        resized_le = plain_raw_video[1][frame_counter]
+
+                                        print("type of resized re:", type(resized_re))
+
+                                        otsu_threshold, resized_re_OTSU = cv.threshold(
+                                            resized_re, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU,
+                                        )
+                                        otsu_threshold_2, resized_le_OTSU = cv.threshold(
+                                            resized_le, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU,
+                                        )
+
+                                        resized_re_t = np.expand_dims(resized_re, axis=-1)
+                                        resized_le_t = np.expand_dims(resized_le, axis=-1)
+
+                                        resized_re_OTSU = np.expand_dims(resized_re_OTSU, axis=-1)
+                                        resized_le_OTSU = np.expand_dims(resized_le_OTSU, axis=-1)
+
+                                        resized_re_t = np.concatenate((resized_re_t, resized_re_OTSU), axis=-1)
+                                        resized_le_t = np.concatenate((resized_le_t, resized_le_OTSU), axis=-1)
+
+                                        # Repetition needs to be changed
+                                        resized_re_KMeans = KMeans_Image(resized_re)
+                                        resized_le_KMeans = KMeans_Image(resized_le)
+
+                                        resized_re_KMeans = np.expand_dims(resized_re_KMeans, axis=-1)
+                                        resized_le_KMeans = np.expand_dims(resized_le_KMeans, axis=-1)
+
+                                        resized_re_t = np.concatenate((resized_re_t, resized_re_KMeans), axis=-1)
+                                        resized_le_t = np.concatenate((resized_le_t, resized_le_KMeans), axis=-1)
+
+                                        print("cropped shapes:", resized_re.shape, resized_le.shape)
+                                        print("cropped shapes in _t:", resized_re_t.shape, resized_le_t.shape)
+
+                                        reward = 0
+                                        reward_directional = 0
+
+                                        # Subtraction for OTSU binarization
+                                        if resized_re_OTSU_before is not None:
+                                            resized_re_OTSU_sub = cv.subtract(resized_re_OTSU, resized_re_OTSU_before)
+                                            resized_re_OTSU_sub = np.where(resized_re_OTSU_sub > 0, 255, 0).astype(np.uint8)
+
+                                            wp_c = np.sum(resized_re_OTSU_sub == 255)
+                                            r_w = wp_c / (32 * 128)
+                                            r_b = 1 - r_w
+                                            reward += r_b
+
+                                            num_white_curr = np.where(resized_re_OTSU > 0, 255, 0).astype(np.uint8)
+                                            num_white_curr = np.sum(num_white_curr == 255) / (32 * 128)
+
+                                            num_white_before = np.where(resized_re_OTSU_before > 0, 255, 0).astype(np.uint8)
+                                            num_white_before = np.sum(num_white_before == 255) / (32 * 128)
+
+                                            direction = -1 if (num_white_curr - num_white_before) < 0 else 1
+
+                                            reward_directional += direction * reward
+
+                                            # cv.imshow("right_eye OTSU subtracted", resized_re_OTSU_sub)
+                                            resized_re_OTSU_before = resized_re_OTSU
+                                        else:
+                                            resized_re_OTSU_before = resized_re_OTSU
+
+                                        if resized_le_OTSU_before is not None:
+                                            resized_le_OTSU_sub = cv.subtract(resized_le_OTSU, resized_le_OTSU_before)
+                                            resized_le_OTSU_sub = np.where(resized_le_OTSU_sub > 0, 255, 0).astype(np.uint8)
+
+                                            wp_c = np.sum(resized_le_OTSU_sub == 255)
+                                            r_w = wp_c / (32 * 128)
+                                            r_b = 1 - r_w
+                                            reward += r_b
+
+                                            num_white_curr = np.where(resized_le_OTSU > 0, 255, 0).astype(np.uint8)
+                                            num_white_curr = np.sum(num_white_curr == 255) / (32 * 128)
+
+                                            num_white_before = np.where(resized_le_OTSU_before > 0, 255, 0).astype(np.uint8)
+                                            num_white_before = np.sum(num_white_before == 255) / (32 * 128)
+
+                                            direction = -1 if (num_white_curr - num_white_before) < 0 else 1
+
+                                            reward_directional += direction * reward
+
+                                            # cv.imshow("left_eye OTSU subtracted", resized_le_OTSU_sub)
+                                            print("something very inner:", "left_eye OTSU subtracted")
+
+                                            resized_le_OTSU_before = resized_le_OTSU
+                                        else:
+                                            resized_le_OTSU_before = resized_le_OTSU
+
+                                        reward /= 2
+                                        reward_directional /= 2
+
+                                        print("reward from the eyes:", reward)
+
+                                        reward_avg += reward
+                                        avgs_unit.append(reward_directional)
+
+                                        eye_right_cropped_model_input.append(resized_re_t)
+                                        eye_left_cropped_model_input.append(resized_le_t)
+
+                                    eye_right_cropped_model_input = np.array(eye_right_cropped_model_input)
+                                    eye_left_cropped_model_input = np.array(eye_left_cropped_model_input)
+
+                                    # num_frames = 32
+                                    num_frames = 60
+
+                                    reward_avg = reward_avg / num_frames  # equal weights to all the frames...
+
+                                    '''Concatenate images now'''
+                                    start_2 = time.time()
+                                    start_3 = time.time()
+                                    concat_frame_left = concat_images(eye_right_cropped_model_input)
+                                    end_3 = time.time()
+
+                                    concat_frame_left_save = cv.normalize(concat_frame_left, None, 0, 255, cv.NORM_MINMAX)
+                                    concat_frame_left_save = concat_frame_left_save.astype(np.uint8)
+
+                                    start_4 = time.time()
+                                    concat_frame_right = concat_images(eye_left_cropped_model_input)
+                                    end_4 = time.time()
+                                    end_2 = time.time()
+
+                                    concat_frame_right_save = cv.normalize(concat_frame_right, None, 0, 255, cv.NORM_MINMAX)
+                                    concat_frame_right_save = concat_frame_right_save.astype(np.uint8)
+
+                                    cv.imwrite(f"ConcatEyeImages/right_eye_{window_num}.png", concat_frame_right_save)
+                                    cv.imwrite(f"ConcatEyeImages/left_eye_{window_num}.png", concat_frame_left_save)
+
+                                    print("time for concat function left:", end_3 - start_3)
+                                    print("time for concat function right:", end_4 - start_4)
+                                    print("time for both concat functions:", end_2 - start_2)
+
+                                    frame_arr = [concat_frame_right, concat_frame_left, reward_avg]
+                                    print("frame_arr dimensions:", len(frame_arr))
+                                    print("concat_frame_right dimensions:", len(concat_frame_right))
+                                    print("concat_frame_right:", concat_frame_right)
+                                    print("reward_avg:", reward_avg)
+                                    print(f"\nreward_avg--- {reward_avg}")
+
+                                    if prev_state is None:
+                                        print("prev state is None")
+                                        prev_state = [concat_frame_right, concat_frame_left]
+                                        print("pointer 1 after reward_avg")
+                                    else:
+                                        # The action state calculation using the concatenated images as input
+                                        start_after_concat = time.time()
+                                        print("pointer 2 after reward_avg")
+                                        # output_after_dense, final_output = EyeVidPre_and_ViViT.PreProcessandFreezedOutput_MobileNetV1(
+                                        #     concat_frame_right, concat_frame_left)
+
+                                        curr_state = [concat_frame_right, concat_frame_left]
+                                        print("pointer 3 after reward_avg:", curr_state[0].shape, prev_state[0].shape)
+
+                                        # Process the right eye input for prev
+                                        inputs = image_processor_1(prev_state[0], return_tensors="pt")
+                                        print("pointer 4 after reward_avg:")
+                                        with torch.no_grad():
+                                            output_right_eye_prev = model_1(**inputs).last_hidden_state
+                                            print("pointer 5 after reward_avg", output_right_eye_prev.shape)
+                                        # Process the left eye input for prev
+                                        inputs = image_processor_1(prev_state[1], return_tensors="pt")
+                                        print("pointer 6 after reward_avg")
+                                        with torch.no_grad():
+                                            output_left_eye_prev = model_1(**inputs).last_hidden_state
+                                            print("pointer 7 after reward_avg")
+
+                                        output_right_eye_prev = output_right_eye_prev.detach().numpy()
+                                        print("pointer 8 after reward_avg")
+                                        output_right_eye_prev = tf.convert_to_tensor(output_right_eye_prev, dtype=tf.float32)
+                                        print("pointer 9 after reward_avg")
+                                        output_left_eye_prev = output_left_eye_prev.detach().numpy()
+                                        print("pointer 10 after reward_avg")
+                                        output_left_eye_prev = tf.convert_to_tensor(output_left_eye_prev, dtype=tf.float32)
+                                        print("pointer 11 after reward_avg")
+
+                                        # Process the right eye input for curr
+                                        inputs = image_processor_1(curr_state[0], return_tensors="pt")
+                                        print("pointer 12 after reward_avg")
+                                        with torch.no_grad():
+                                            output_right_eye_curr = model_1(**inputs).last_hidden_state
+                                            print("pointer 13 after reward_avg")
+                                        # Process the left eye input for curr
+                                        inputs = image_processor_1(curr_state[1], return_tensors="pt")
+                                        print("pointer 14 after reward_avg")
+                                        with torch.no_grad():
+                                            output_left_eye_curr = model_1(**inputs).last_hidden_state
+                                            print("pointer 15 after reward_avg")
+
+                                        output_right_eye_curr = output_right_eye_curr.detach().numpy()
+                                        print("pointer 16 after reward_avg")
+                                        output_right_eye_curr = tf.convert_to_tensor(output_right_eye_curr, dtype=tf.float32)
+                                        print("pointer 17 after reward_avg")
+                                        output_left_eye_curr = output_left_eye_curr.detach().numpy()
+                                        print("pointer 18 after reward_avg")
+                                        output_left_eye_curr = tf.convert_to_tensor(output_left_eye_curr, dtype=tf.float32)
+                                        print("pointer 19 after reward_avg")
+
+                                        # prev_state = [np.expand_dims(output_right_eye_prev, axis=0),
+                                        #               np.expand_dims(output_left_eye_prev, axis=0)]
+                                        prev_state = [output_right_eye_prev, output_left_eye_prev]
+                                        print("pointer 20 after reward_avg")
+
+                                        final_output = policy(prev_state, ou_noise)
+                                        print("pointer 21 after reward_avg")
+                                        end_after_concat = time.time()
+                                        print("pointer 22 after reward_avg")
+
+                                        print("final_output:", final_output)
+                                        print("time taken for layer after:", end_after_concat - start_after_concat)
+
+                                        action = int(np.argmax(final_output))  # replace with policy function
+                                        print("pointer 23 after reward_avg")
+                                        # action = int(torch.argmax(final_output))  # replace with policy function
+                                        alpha = 1
+                                        beta = 1
+                                        gamma = 10
+                                        
+                                        # print("reward just before buffer learn setting:", reward)
+
+                                        # reward = alpha*reward_avg + beta*calculate_temporal_smoothness_reward(avgs_unit)  # New reward function...
+                                        if pose_seq_similarity_score is None:
+                                            print("some error in pose_seq_similarity_score assignment position...")
+                                        else:
+                                            reward = alpha*reward_avg + beta*calculate_temporal_smoothness_reward(avgs_unit) + gamma*pose_seq_similarity_score  # New reward function..., with dance comparison
+
+                                        print(f"\ntotal reward--- {reward}")
+
+                                        reward_avg = 0
+                                        avgs_unit = []
+                                        print("pointer 24 after reward_avg")
+
+                                        print("After completion of action calculation:", action)
+                                        action_arr = [0] * num_actions
+                                        print("pointer 25 after reward_avg")
+                                        action_arr[action] = 1
+                                        print("pointer 26 after reward_avg")
+
+                                        print("shape of action vector before buffer.record:", action_arr)
+                                        action_arr = np.array(action_arr)
+                                        print("pointer 27 after reward_avg")
+                                        action_arr = action_arr.reshape(1, 6)
+                                        print("pointer 28 after reward_avg")
+                                        print("shape of action vector before buffer.record after expanding:", action_arr, action_arr.shape)
+
+                                        print("After completion of reward calculation:", reward)
+
+                                        # curr_state = [np.expand_dims(output_right_eye_curr, axis=0),
+                                        #               np.expand_dims(output_left_eye_curr, axis=0)]
+                                        curr_state_ = [output_right_eye_curr, output_left_eye_curr]
+                                        print("pointer 29 after reward_avg")
+
+                                        print("After completion of curr_state calculation:", type(curr_state_))
+
+                                        print("shape of output_right_eye_prev:", output_right_eye_prev.shape)
+
+                                        # buffer.record((np.array(prev_state), np.array([action]), np.array([reward]), np.array(curr_state)))
+                                        # buffer.record((np.array(output_right_eye_prev), np.array(output_left_eye_prev),
+                                        #                action, reward,
+                                        #                np.array(output_right_eye_curr), np.array(output_left_eye_curr)))
+                                        buffer.record((np.array(output_right_eye_prev), np.array(output_left_eye_prev),
+                                                    action_arr, reward,
+                                                    np.array(output_right_eye_curr), np.array(output_left_eye_curr)))
+                                        print("pointer 30 after reward_avg")
+                                        
+                                        # plt.imsave("output_right_eye_prev.png", output_right_eye_prev)
+                                        # plt.imsave("output_left_eye_prev.png", output_left_eye_prev)
+                                        # plt.imsave("output_right_eye_curr.png", output_right_eye_curr)
+                                        # plt.imsave("output_left_eye_curr.png", output_left_eye_curr)
+                                        # print(f"\nreward: {reward}")
+
+                                        buffer.learn()
+                                        print("pointer 31 after reward_avg")
+
+                                        print("pointer actor model 3")
+                                        update_target(target_actor, actor_model, tau)
+                                        print("pointer 32 after reward_avg")
+
+                                        print("pointer critic model 3")
+                                        update_target(target_critic, critic_model, tau)
+                                        print("pointer 33 after reward_avg")
+
+                                        prev_state = curr_state
+                                        print("pointer 34 after reward_avg")
+
+                                        print("music_index:", action)
+
+                                        # frame_queue.put(frame_arr, block=True)
+                                        # # num_frames = 32
+
+                                        # Muisc playing part
+                                        # current_music_index = (window_num % 5)
+                                        current_music_index = action
+                                        print("pointer 35 after reward_avg:", current_music_index)
+                                        current_music_file = music_files[current_music_index]
+                                        print("pointer 36 after reward_avg:", current_music_file)
+                                        print("current_music_file:", current_music_file)
+
+                                        try:
+                                            music_queue.put(music_files[current_music_index])
+                                            print("pointer 37 after reward_avg")
+                                        except Exception as e:
+                                            print("mp 3, Exception in music queue handling:", e)
+                                            raise Exception("mp 3, Exception in music queue handling:")
+
+                                        reward = 0
 
 
 
@@ -2175,35 +2238,74 @@ def video_capture_and_stuff():
 
 
 
-                                # # The action state calculation using the sequence as input: RNN (GRU)
-                                # actor_model_GRU(plain_raw_video)
+                                        # # The action state calculation using the sequence as input: RNN (GRU)
+                                        # actor_model_GRU(plain_raw_video)
 
-                            frame_arr = []
-                            plain_raw_video = [[], []]
+                                    frame_arr = []
+                                    plain_raw_video = [[], []]
 
-                            eye_right_cropped_model_input = []
-                            eye_left_cropped_model_input = []
+                                    eye_right_cropped_model_input = []
+                                    eye_left_cropped_model_input = []
 
-                            print("video window num:", window_num)
-                            window_num += 1
-                            # window_num = 1
+                                    print("video window num:", window_num)
+                                    window_num += 1
+                                    # window_num = 1
 
-                            # Re-init of the marker variables
-                            green_sig_init_once = False
-                            flag_generated_motion_once = False
-                            flag_movement_demo = False
-                            flag_sig_movement_demo = False
-                            sig_movement_demo = None
-                            flag_do_demo_warn = False
-                            flag_take_usr_input_rep_demo = False
-                            flag_user_rep_done = False
+                                    print("---------- flag values and time values before reset ----------")
+                                    print("flag_red_sig:", flag_red_sig)
+                                    print("flag_green_sig:", flag_green_sig)
+                                    print("green_sig_init_once:", green_sig_init_once)
+                                    print("flag_generated_motion_once:", flag_generated_motion_once)
+                                    print("flag_movement_demo:", flag_movement_demo)
+                                    print("flag_sig_movement_demo:", flag_sig_movement_demo)
+                                    print("sig_movement_demo:", sig_movement_demo)
+                                    print("flag_do_demo_warn:", flag_do_demo_warn)
+                                    print("flag_take_usr_input_rep_demo:", flag_take_usr_input_rep_demo)
+                                    print("flag_user_rep_done:", flag_user_rep_done)
+                                    print("pose_seq_similarity_score:", pose_seq_similarity_score)
+                                    print("red_signal:", red_signal)
+                                    print("green_signal:", green_signal)
 
-                            pose_seq_similarity_score = None
+                                    # Re-init of the marker variables
+                                    flag_red_sig = False
+                                    flag_green_sig = False
 
-                            VRNN_pose_input = []
-                            pose_seq_user_rep = []
+                                    green_sig_init_once = False
+                                    flag_generated_motion_once = False
+                                    flag_movement_demo = False
+                                    flag_sig_movement_demo = False
+                                    sig_movement_demo = None
+                                    flag_do_demo_warn = False
+                                    flag_take_usr_input_rep_demo = False
+                                    flag_user_rep_done = False
+                                    flag_shown_GIF_loop_once = False
 
-                cv.imshow("img", img)
+                                    pose_seq_similarity_score = None
+
+                                    VRNN_pose_input = []
+
+                                    pose_seq_user_rep_5s = pose_seq_user_rep[len(pose_seq_user_rep) - 5:]
+                                    pose_seq_user_rep = []
+
+                                    red_signal = time.time()
+                                    green_signal = time.time()
+
+                                    print("---------- flag values and time values after reset ----------")
+                                    print("flag_red_sig:", flag_red_sig)
+                                    print("flag_green_sig:", flag_green_sig)
+                                    print("green_sig_init_once:", green_sig_init_once)
+                                    print("flag_generated_motion_once:", flag_generated_motion_once)
+                                    print("flag_movement_demo:", flag_movement_demo)
+                                    print("flag_sig_movement_demo:", flag_sig_movement_demo)
+                                    print("sig_movement_demo:", sig_movement_demo)
+                                    print("flag_do_demo_warn:", flag_do_demo_warn)
+                                    print("flag_take_usr_input_rep_demo:", flag_take_usr_input_rep_demo)
+                                    print("flag_user_rep_done:", flag_user_rep_done)
+                                    print("pose_seq_similarity_score:", pose_seq_similarity_score)
+                                    print("red_signal:", red_signal)
+                                    print("green_signal:", green_signal)
+
+                # cv.imshow("img", img)
                 cv.imshow("img2", img2)
                 print("shape of image:", img.shape)
 
@@ -2251,11 +2353,15 @@ def video_capture_and_stuff():
 
     except Exception as e:
         print("Error in video input threading...:", e)
+        # pass
 
     finally:
         # Clean up
         cap.release()
         cv.destroyAllWindows()
+
+        # pass
+
         # for thread in threads:
         #     thread.stop()
         #     thread.join()
