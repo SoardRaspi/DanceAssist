@@ -42,12 +42,21 @@ from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout
 from PyQt5.QtGui import QMovie
 from PyQt5.QtCore import QTimer
 
+from music_recommendation_synthetic_verifier import random_selection
+
+# 0 -> normal mode - take video input
+# 1 -> testing mode - take face keypoints and reward from tester
+RUN_MODE = 1
+
 # import pygame
 
 import mediapipe as mp
 import imageio
 
 from st_gcn_st_gcn.net.st_gcn import ST_GCN_Model
+
+# USER PROPERTY TO REGULATE THE DELAY BETWEEN HEAD MOVES
+head_mov_delay_time = 2.0
 
 # import concurrent.futures
 
@@ -1503,6 +1512,8 @@ def play_music():
 
         time.sleep(0.1)  # Small delay to prevent CPU hogging
 
+chosen_music_array = []
+music_index_iter_array = []
 
 def video_capture_and_stuff(path_to_json_root = "/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/DDPG with new changes"):
     # app = QApplication(sys.argv)
@@ -1552,6 +1563,8 @@ def video_capture_and_stuff(path_to_json_root = "/Users/soardr/PycharmProjects/R
     # model_actor_local = EyeVidPre_and_ViViT.Model(5)
     music_folder = "Musics"  # Folder where music files are stored
     music_files = [os.path.join(music_folder, f) for f in os.listdir(music_folder) if f.endswith('.mp3')]
+    music_index_iter = np.random.randint(0, 7)
+    chosen_music = random_selection.tester_get_chosen_music()
 
     motion = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     # count = 1
@@ -1627,6 +1640,11 @@ def video_capture_and_stuff(path_to_json_root = "/Users/soardr/PycharmProjects/R
 
     plain_raw_video = [[], [], [], []]  # [[], []] = [(right-eye), (left-eye)]
 
+    # if RUN_MODE == 0:
+    #     cap = cv.VideoCapture(0)
+    # elif RUN_MODE == 1:
+    #     # tester code
+    #     cap = None
     cap = cv.VideoCapture(0)
 
     # num_frames = 32
@@ -1674,471 +1692,715 @@ def video_capture_and_stuff(path_to_json_root = "/Users/soardr/PycharmProjects/R
         one_hot = one_hot.float()
         music_one_hot_vectors = one_hot.argmax(dim=-1)
         
-        with mp_holistic.Holistic(
-                            static_image_mode=False,
-                            model_complexity=1,
-                            smooth_landmarks=True,
-                            min_detection_confidence=0.5,
-                            min_tracking_confidence=0.5) as holistic:
+        # if RUN_MODE == 0:
+        #     with mp_holistic.Holistic(
+        #                         static_image_mode=False,
+        #                         model_complexity=1,
+        #                         smooth_landmarks=True,
+        #                         min_detection_confidence=0.5,
+        #                         min_tracking_confidence=0.5) as holistic:
 
-            for ep in range(num_frames*total_episodes):
-                if block_time_started is False:
-                    block_start_time = time.time()
-                    block_time_started = True
+        #         for ep in range(num_frames*total_episodes):
+        #             if block_time_started is False:
+        #                 block_start_time = time.time()
+        #                 block_time_started = True
 
-                face_coords = {0: None, 1: None, 2: None, 3: None, 4: None, 5: None, 6: None, 7: None, 8: None}
+        #             face_coords = {0: None, 1: None, 2: None, 3: None, 4: None, 5: None, 6: None, 7: None, 8: None}
 
-                success, img2 = cap.read()
+        #             success, img2 = cap.read()
 
-                if (success) and (img2 is not None):
-                    img = adjust_brightness(img2)
-                    
-                    # if flag_red_sig is True:
-                    if flag_user_rep_done is False:
-                        # if (time.time() - green_signal) < 5:
-                        if steps_batch_counter < num_steps_in_batch:
-                                if success:
-                                    cv.putText(img2, f"Frames left {num_steps_in_batch - steps_batch_counter}", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv.LINE_AA)
-                                    steps_batch_counter += 1
-                                    # cv.putText(img2, str(5 - (int(time.time() - green_signal))), (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv.LINE_AA)
-                                    # print("flag_green_sig is still False: ", 5 - (int(time.time() - green_signal)), time.time(), green_signal)
-                                
-                                else:
-                                    raise Exception("Error in initial video feed")
-                            
-                        else:
-                            flag_user_rep_done = True
-                            print("flag_user_rep_done is now True")
-
-                    right_eye_main = []
-                    left_eye_main = []
-
-                    try:
-                        if (ep % block_size) == 0:
-                            music_file_temp = music_files[music_one_hot_vectors[0][(ep // block_size) % len(music_files)]]
-                            print("music_file_temp in music queue:", music_file_temp)
-                            
-                            # music_queue.put(music_file_temp)
-
-                            block_end_time = time.time()
-                            music_times__per_block.append(block_end_time - block_start_time)
-                            block_start_time = time.time()
-
-                            block_time_started = False
-                    except Exception as music_playing_error:
-                        print("error in sending music through queue:", music_playing_error)
-
-                    # with mp_face_mesh.FaceMesh(
-                    #         static_image_mode=True,
-                    #         min_detection_confidence=0.5) as face_mesh:
-                        # mp_pose.Pose(
-                        #     static_image_mode=False, 
-                        #     model_complexity=1, 
-                        #     smooth_landmarks=True, 
-                        #     enable_segmentation=False, 
-                        #     min_detection_confidence=0.5, 
-                        #     min_tracking_confidence=0.5) as pose:
-                    
-                    # with mp_holistic.Holistic(
-                    #         static_image_mode=False,
-                    #         model_complexity=1,
-                    #         smooth_landmarks=True,
-                    #         min_detection_confidence=0.5,
-                    #         min_tracking_confidence=0.5) as holistic:
-                    
-
-                    # Convert the BGR image to RGB before processing.
-                    img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-
-                    results = holistic.process(img_rgb)
-
-                    # total result
-                    # if INPUT_MODE == 0:
-                    # if True:
-                    #     with mp_holistic.Holistic(
-                    #                 static_image_mode=False,
-                    #                 model_complexity=1,
-                    #                 smooth_landmarks=True,
-                    #                 min_detection_confidence=0.5,
-                    #                 min_tracking_confidence=0.5) as holistic:
-                            
-                    #         results = holistic.process(img_rgb)
-                    # else:
-                    #     with mp_pose.Pose(
-                    #             static_image_mode=False, 
-                    #             model_complexity=1, 
-                    #             smooth_landmarks=True, 
-                    #             enable_segmentation=False, 
-                    #             min_detection_confidence=0.5, 
-                    #             min_tracking_confidence=0.5) as pose:
-                            
-                    #         results = pose.process(img_rgb)
-                    
-                    if INPUT_MODE != 0:
-                    # if True:
-                        # Draw face landmarks (without connections)
-                        if results.face_landmarks:
-                            mp_drawing.draw_landmarks(img2, results.face_landmarks)
-
-                        # Draw pose landmarks
-                        if results.pose_landmarks:
-                            mp_drawing.draw_landmarks(img2, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS)
-                    else:
-                        pose_landmarks = results.pose_landmarks
-
-                        if pose_landmarks:
-                            # mp_drawing.draw_landmarks(img2, pose_landmarks, mp_holistic.POSE_CONNECTIONS)
-                            for key in face_coords:
-                                t = pose_landmarks.landmark[key]
-                                face_coords[key] = [t.x, t.y, t.z, t.visibility]
-                            
-                            N_M = []
-
-                            for key in face_coords:
-                                x, y, z, vis = face_coords[key]
-                                N_M.append([x, y, z, vis])
-
-                                x *= img2.shape[1]
-                                x = int(x)
-                                
-                                y *= img2.shape[0]
-                                y = int(y)
-
-                                cv.circle(img2, (x, y), 3, (255, 0, 0), 3)
-                            
-                            # print("N_M:", N_M)
-                            
-                            T_N_M.append(N_M)
-
-                    # # results_2 = face_mesh.process(img_rgb)
-                    # results_2 = results.face_landmarks
-                    # # pose_result = pose.process(img_rgb)
-
-                    # face_landmarks = results_2.multi_face_landmarks[0]
-                    # landmarks = {i: (lm.x, lm.y) for i, lm in enumerate(face_landmarks.landmark)}
-                
-
-                    # # Generate the sequence using this starting pose:
-                    # # if len(VRNN_pose_input) != 0:
-
-                    # if (flag_green_sig is True) and (flag_red_sig is True) and (flag_generated_motion_once is False):
-                    #     if prev_state is not None:
-                    #         print("reached the condition where not the first iteration first:", type(pose_seq_user_rep_5s), len(pose_seq_user_rep_5s))
-                    #         print("reached the condition where not the first iteration second:", pose_seq_user_rep_5s)
-
-                    #     if flag_sig_movement_demo is False:
-                    #         sig_movement_demo = time.time()
-                    #         flag_sig_movement_demo = True
+        #             if (success) and (img2 is not None):
+        #                 img = adjust_brightness(img2)
                         
-                    #     print("pointer before getting user input for demo reaction...")
+        #                 # if flag_red_sig is True:
+        #                 if flag_user_rep_done is False:
+        #                     # if (time.time() - green_signal) < 5:
+        #                     if steps_batch_counter < num_steps_in_batch:
+        #                             if success:
+        #                                 cv.putText(img2, f"Frames left {num_steps_in_batch - steps_batch_counter}", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv.LINE_AA)
+        #                                 steps_batch_counter += 1
+        #                                 # cv.putText(img2, str(5 - (int(time.time() - green_signal))), (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv.LINE_AA)
+        #                                 # print("flag_green_sig is still False: ", 5 - (int(time.time() - green_signal)), time.time(), green_signal)
+                                    
+        #                             else:
+        #                                 raise Exception("Error in initial video feed")
+                                
+        #                     else:
+        #                         flag_user_rep_done = True
+        #                         print("flag_user_rep_done is now True")
 
-                    #     if ((time.time() - sig_movement_demo) < 5) and (flag_do_demo_warn is False):
-                    #         print("inside the demo condition:", time.time() - sig_movement_demo)
-                    #         cv.putText(img2, "Get ready to copy the movement, you will get a small amount of time to replicate the shown dance motion", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv.LINE_AA)
-                    #         cv.putText(img2, "Message will disappear in " + str(5 - (int(time.time() - sig_movement_demo))), (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv.LINE_AA)
-                    #     else:
-                    #         print("inside the demo condition else timings:", time.time(), sig_movement_demo)
-                    #         flag_do_demo_warn = True
+        #                 right_eye_main = []
+        #                 left_eye_main = []
+
+        #                 try:
+        #                     if (ep % block_size) == 0:
+        #                         decided_music_index = music_one_hot_vectors[0][(ep // block_size) % len(music_files)]
+        #                         music_file_temp = music_files[decided_music_index]
+        #                         print("music_file_temp in music queue:", music_file_temp)
+                                
+        #                         # music_queue.put(music_file_temp)
+
+        #                         block_end_time = time.time()
+        #                         music_times__per_block.append(block_end_time - block_start_time)
+        #                         block_start_time = time.time()
+
+        #                         block_time_started = False
+        #                 except Exception as music_playing_error:
+        #                     print("error in sending music through queue:", music_playing_error)
+
+        #                 # with mp_face_mesh.FaceMesh(
+        #                 #         static_image_mode=True,
+        #                 #         min_detection_confidence=0.5) as face_mesh:
+        #                     # mp_pose.Pose(
+        #                     #     static_image_mode=False, 
+        #                     #     model_complexity=1, 
+        #                     #     smooth_landmarks=True, 
+        #                     #     enable_segmentation=False, 
+        #                     #     min_detection_confidence=0.5, 
+        #                     #     min_tracking_confidence=0.5) as pose:
                         
-                    #     if flag_do_demo_warn is True:
-                    #         remaining_frames = len(VRNN_seq_gen) - len(pose_seq_user_rep)
+        #                 # with mp_holistic.Holistic(
+        #                 #         static_image_mode=False,
+        #                 #         model_complexity=1,
+        #                 #         smooth_landmarks=True,
+        #                 #         min_detection_confidence=0.5,
+        #                 #         min_tracking_confidence=0.5) as holistic:
+                        
 
-                    #         if flag_user_rep_done is False:
-                    #             print("inside the user input for demo repetition condition", len(pose_seq_user_rep), len(VRNN_seq_gen), "ep:", ep)
-                    #             cv.putText(img2, "Number of frames left to capture...", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv.LINE_AA)
-                    #             cv.putText(img2, str(remaining_frames), (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv.LINE_AA)
+        #                 # Convert the BGR image to RGB before processing.
+        #                 img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)
 
-                    #             print("remaining_frames is:", remaining_frames)
+        #                 results = holistic.process(img_rgb)
 
-                    #             if remaining_frames == 0:
-                    #                 print("remaining_frames is 0")
-                    #             elif len(VRNN_seq_gen) - len(pose_seq_user_rep) == 1:
-                    #                 print("remaining_frames is 1")
+        #                 # total result
+        #                 # if INPUT_MODE == 0:
+        #                 # if True:
+        #                 #     with mp_holistic.Holistic(
+        #                 #                 static_image_mode=False,
+        #                 #                 model_complexity=1,
+        #                 #                 smooth_landmarks=True,
+        #                 #                 min_detection_confidence=0.5,
+        #                 #                 min_tracking_confidence=0.5) as holistic:
+                                
+        #                 #         results = holistic.process(img_rgb)
+        #                 # else:
+        #                 #     with mp_pose.Pose(
+        #                 #             static_image_mode=False, 
+        #                 #             model_complexity=1, 
+        #                 #             smooth_landmarks=True, 
+        #                 #             enable_segmentation=False, 
+        #                 #             min_detection_confidence=0.5, 
+        #                 #             min_tracking_confidence=0.5) as pose:
+                                
+        #                 #         results = pose.process(img_rgb)
+                        
+        #                 if INPUT_MODE != 0:
+        #                 # if True:
+        #                     # Draw face landmarks (without connections)
+        #                     if results.face_landmarks:
+        #                         mp_drawing.draw_landmarks(img2, results.face_landmarks)
+
+        #                     # Draw pose landmarks
+        #                     if results.pose_landmarks:
+        #                         mp_drawing.draw_landmarks(img2, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS)
+        #                 else:
+        #                     pose_landmarks = results.pose_landmarks
+
+        #                     if pose_landmarks:
+        #                         # mp_drawing.draw_landmarks(img2, pose_landmarks, mp_holistic.POSE_CONNECTIONS)
+        #                         for key in face_coords:
+        #                             t = pose_landmarks.landmark[key]
+        #                             face_coords[key] = [t.x, t.y, t.z, t.visibility]
+                                
+        #                         N_M = []
+
+        #                         for key in face_coords:
+        #                             x, y, z, vis = face_coords[key]
+        #                             N_M.append([x, y, z, vis])
+
+        #                             x *= img2.shape[1]
+        #                             x = int(x)
+                                    
+        #                             y *= img2.shape[0]
+        #                             y = int(y)
+
+        #                             cv.circle(img2, (x, y), 3, (255, 0, 0), 3)
+                                
+        #                         # print("N_M:", N_M)
+                                
+        #                         T_N_M.append(N_M)
+
+        #                 # # results_2 = face_mesh.process(img_rgb)
+        #                 # results_2 = results.face_landmarks
+        #                 # # pose_result = pose.process(img_rgb)
+
+        #                 # face_landmarks = results_2.multi_face_landmarks[0]
+        #                 # landmarks = {i: (lm.x, lm.y) for i, lm in enumerate(face_landmarks.landmark)}
+                    
+
+        #                 # # Generate the sequence using this starting pose:
+        #                 # # if len(VRNN_pose_input) != 0:
+
+        #                 # if (flag_green_sig is True) and (flag_red_sig is True) and (flag_generated_motion_once is False):
+        #                 #     if prev_state is not None:
+        #                 #         print("reached the condition where not the first iteration first:", type(pose_seq_user_rep_5s), len(pose_seq_user_rep_5s))
+        #                 #         print("reached the condition where not the first iteration second:", pose_seq_user_rep_5s)
+
+        #                 #     if flag_sig_movement_demo is False:
+        #                 #         sig_movement_demo = time.time()
+        #                 #         flag_sig_movement_demo = True
                             
-                    #         # if (flag_user_rep_done is True) or (remaining_frames == 0):
-                    #         #     print("inside the condition to compare the dance motions")
-                    #         #     # The code which takes care of the comparison
-                    #         #     pose_estimator = dance_comp_Dyuthi.PoseEstimator()
+        #                 #     print("pointer before getting user input for demo reaction...")
 
-                    #         #     pose_seq_similarity_score = pose_estimator.compare_kps(pose_seq_user_rep, VRNN_seq_gen)['average']
-                    #         #     print("pose_seq_similarity_score:", pose_seq_similarity_score)
-
-                    # # MARKER:  at eye processing for visual attention... - do later...
-                    # if flag_do_demo_warn is True:
-                    #     # # cv.imwrite(f"/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/DDPG with new changes/{episode_counter}_{(ep + 1) if episode_counter == 0 else (int(ep / episode_counter) - 59)}.jpg", img)
-                    #     # # cv.imwrite(f"/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/DDPG with new changes/{episode_counter}_{len(pose_seq_user_rep)}.jpg", img)
-                    #     # cv.imwrite(f"/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/DDPG with new changes/{len(pose_seq_user_rep)}.jpg", img)
-
-                    #     # with open(os.path.join(path_to_json_root, f"keypoints_data_{len(pose_seq_user_rep)}.json"), "w") as json_file:
-                    #     #     dictionary_temp = {"ep": episode_counter,
-                    #     #                     #    "frame_num": (ep + 1) if episode_counter == 0 else (int(ep / episode_counter) - 59),
-                    #     #                        "frame_num": len(pose_seq_user_rep),
-                    #     #                        "right_eye_main_dict": right_eye_main_dict,
-                    #     #                        "left_eye_main_dict": left_eye_main_dict,
-                    #     #                        "regions_re": regions_re,
-                    #     #                        "regions_le": regions_le,
-                    #     #                        "right_upper_lobe": right_upper_lobe,
-                    #     #                        "right_lower_lobe": right_lower_lobe,
-                    #     #                        "left_upper_lobe": left_upper_lobe,
-                    #     #                        "left_lower_lobe": left_lower_lobe,
-                    #     #                        "image_file_path": f"/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/DDPG with new changes/{len(pose_seq_user_rep)}.jpg"}
-                    #     #                     #    "image_file_path": f"/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/DDPG with new changes/{episode_counter}_{len(pose_seq_user_rep)}.jpg"}
-                    #     #                     #    "image_file_path": f"/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/DDPG with new changes/{episode_counter}_{(ep + 1) if episode_counter == 0 else (int(ep / episode_counter) - 59)}.jpg"}
+        #                 #     if ((time.time() - sig_movement_demo) < 5) and (flag_do_demo_warn is False):
+        #                 #         print("inside the demo condition:", time.time() - sig_movement_demo)
+        #                 #         cv.putText(img2, "Get ready to copy the movement, you will get a small amount of time to replicate the shown dance motion", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv.LINE_AA)
+        #                 #         cv.putText(img2, "Message will disappear in " + str(5 - (int(time.time() - sig_movement_demo))), (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv.LINE_AA)
+        #                 #     else:
+        #                 #         print("inside the demo condition else timings:", time.time(), sig_movement_demo)
+        #                 #         flag_do_demo_warn = True
                             
-                    #     #     json.dump(dictionary_temp, json_file)
+        #                 #     if flag_do_demo_warn is True:
+        #                 #         remaining_frames = len(VRNN_seq_gen) - len(pose_seq_user_rep)
 
-                    #     # MARKER:  store the 3/5 keypoints for ST_GCN
-                    #     xs = []
-                    #     ys = []
-                    #     zs = []
-                    #     viss = []
+        #                 #         if flag_user_rep_done is False:
+        #                 #             print("inside the user input for demo repetition condition", len(pose_seq_user_rep), len(VRNN_seq_gen), "ep:", ep)
+        #                 #             cv.putText(img2, "Number of frames left to capture...", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv.LINE_AA)
+        #                 #             cv.putText(img2, str(remaining_frames), (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv.LINE_AA)
 
-                    #     # for face_key in face_coords:
-                    #     #     print("face_key data point:", face_coords[face_key])
-                    #     #     xs.append([face_coords[face_key][0]])
-                    #     #     ys.append([face_coords[face_key][1]])
-                    #     #     zs.append([face_coords[face_key][2]])
-                    #     #     viss.append([face_coords[face_key][3]])
+        #                 #             print("remaining_frames is:", remaining_frames)
 
-                    #     # TODO: Uncomment this for inference
-                    #     if num_frames != 0:
-                    #         # # MARKER:  Store the frames and other per-frame data in the JSON file
+        #                 #             if remaining_frames == 0:
+        #                 #                 print("remaining_frames is 0")
+        #                 #             elif len(VRNN_seq_gen) - len(pose_seq_user_rep) == 1:
+        #                 #                 print("remaining_frames is 1")
+                                
+        #                 #         # if (flag_user_rep_done is True) or (remaining_frames == 0):
+        #                 #         #     print("inside the condition to compare the dance motions")
+        #                 #         #     # The code which takes care of the comparison
+        #                 #         #     pose_estimator = dance_comp_Dyuthi.PoseEstimator()
 
-                    #         num_frames -= 1
+        #                 #         #     pose_seq_similarity_score = pose_estimator.compare_kps(pose_seq_user_rep, VRNN_seq_gen)['average']
+        #                 #         #     print("pose_seq_similarity_score:", pose_seq_similarity_score)
 
-                    #     else:
-                    #         print("plain_raw_video size:", plain_raw_video.size())
+        #                 # # MARKER:  at eye processing for visual attention... - do later...
+        #                 # if flag_do_demo_warn is True:
+        #                 #     # # cv.imwrite(f"/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/DDPG with new changes/{episode_counter}_{(ep + 1) if episode_counter == 0 else (int(ep / episode_counter) - 59)}.jpg", img)
+        #                 #     # # cv.imwrite(f"/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/DDPG with new changes/{episode_counter}_{len(pose_seq_user_rep)}.jpg", img)
+        #                 #     # cv.imwrite(f"/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/DDPG with new changes/{len(pose_seq_user_rep)}.jpg", img)
 
-                    #         frame_arr = []
-                    #         plain_raw_video = [[], [], [], []]
+        #                 #     # with open(os.path.join(path_to_json_root, f"keypoints_data_{len(pose_seq_user_rep)}.json"), "w") as json_file:
+        #                 #     #     dictionary_temp = {"ep": episode_counter,
+        #                 #     #                     #    "frame_num": (ep + 1) if episode_counter == 0 else (int(ep / episode_counter) - 59),
+        #                 #     #                        "frame_num": len(pose_seq_user_rep),
+        #                 #     #                        "right_eye_main_dict": right_eye_main_dict,
+        #                 #     #                        "left_eye_main_dict": left_eye_main_dict,
+        #                 #     #                        "regions_re": regions_re,
+        #                 #     #                        "regions_le": regions_le,
+        #                 #     #                        "right_upper_lobe": right_upper_lobe,
+        #                 #     #                        "right_lower_lobe": right_lower_lobe,
+        #                 #     #                        "left_upper_lobe": left_upper_lobe,
+        #                 #     #                        "left_lower_lobe": left_lower_lobe,
+        #                 #     #                        "image_file_path": f"/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/DDPG with new changes/{len(pose_seq_user_rep)}.jpg"}
+        #                 #     #                     #    "image_file_path": f"/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/DDPG with new changes/{episode_counter}_{len(pose_seq_user_rep)}.jpg"}
+        #                 #     #                     #    "image_file_path": f"/Users/soardr/PycharmProjects/ReinforcementLearningSnakeGame/DDPG with new changes/{episode_counter}_{(ep + 1) if episode_counter == 0 else (int(ep / episode_counter) - 59)}.jpg"}
+                                
+        #                 #     #     json.dump(dictionary_temp, json_file)
 
-                    #         print("video window num:", window_num)
-                    #         window_num += 1
-                    #         # window_num = 1
+        #                 #     # MARKER:  store the 3/5 keypoints for ST_GCN
+        #                 #     xs = []
+        #                 #     ys = []
+        #                 #     zs = []
+        #                 #     viss = []
 
-                    #         print("---------- flag values and time values before reset ----------")
-                    #         print("flag_red_sig:", flag_red_sig)
-                    #         print("flag_green_sig:", flag_green_sig)
-                    #         print("green_sig_init_once:", green_sig_init_once)
-                    #         print("flag_generated_motion_once:", flag_generated_motion_once)
-                    #         print("flag_movement_demo:", flag_movement_demo)
-                    #         print("flag_sig_movement_demo:", flag_sig_movement_demo)
-                    #         print("sig_movement_demo:", sig_movement_demo)
-                    #         print("flag_do_demo_warn:", flag_do_demo_warn)
-                    #         print("flag_take_usr_input_rep_demo:", flag_take_usr_input_rep_demo)
-                    #         print("flag_user_rep_done:", flag_user_rep_done)
-                    #         print("pose_seq_similarity_score:", pose_seq_similarity_score)
-                    #         print("red_signal:", red_signal)
-                    #         print("green_signal:", green_signal)
+        #                 #     # for face_key in face_coords:
+        #                 #     #     print("face_key data point:", face_coords[face_key])
+        #                 #     #     xs.append([face_coords[face_key][0]])
+        #                 #     #     ys.append([face_coords[face_key][1]])
+        #                 #     #     zs.append([face_coords[face_key][2]])
+        #                 #     #     viss.append([face_coords[face_key][3]])
 
-                    #         # Re-init of the marker variables
-                    #         flag_red_sig = False
-                    #         flag_green_sig = False
+        #                 #     # TODO: Uncomment this for inference
+        #                 #     if num_frames != 0:
+        #                 #         # # MARKER:  Store the frames and other per-frame data in the JSON file
 
-                    #         green_sig_init_once = False
-                    #         flag_generated_motion_once = False
-                    #         flag_movement_demo = False
-                    #         flag_sig_movement_demo = False
-                    #         sig_movement_demo = None
-                    #         flag_do_demo_warn = False
-                    #         flag_take_usr_input_rep_demo = False
-                    #         flag_user_rep_done = False
-                    #         flag_shown_GIF_loop_once = False
+        #                 #         num_frames -= 1
 
-                    #         pose_seq_similarity_score = None
+        #                 #     else:
+        #                 #         print("plain_raw_video size:", plain_raw_video.size())
 
-                    #         VRNN_pose_input = []
+        #                 #         frame_arr = []
+        #                 #         plain_raw_video = [[], [], [], []]
 
-                    #         pose_seq_user_rep_5s = pose_seq_user_rep[len(pose_seq_user_rep) - 5:]
-                    #         pose_seq_user_rep = []
+        #                 #         print("video window num:", window_num)
+        #                 #         window_num += 1
+        #                 #         # window_num = 1
 
-                    #         red_signal = time.time()
-                    #         green_signal = time.time()
+        #                 #         print("---------- flag values and time values before reset ----------")
+        #                 #         print("flag_red_sig:", flag_red_sig)
+        #                 #         print("flag_green_sig:", flag_green_sig)
+        #                 #         print("green_sig_init_once:", green_sig_init_once)
+        #                 #         print("flag_generated_motion_once:", flag_generated_motion_once)
+        #                 #         print("flag_movement_demo:", flag_movement_demo)
+        #                 #         print("flag_sig_movement_demo:", flag_sig_movement_demo)
+        #                 #         print("sig_movement_demo:", sig_movement_demo)
+        #                 #         print("flag_do_demo_warn:", flag_do_demo_warn)
+        #                 #         print("flag_take_usr_input_rep_demo:", flag_take_usr_input_rep_demo)
+        #                 #         print("flag_user_rep_done:", flag_user_rep_done)
+        #                 #         print("pose_seq_similarity_score:", pose_seq_similarity_score)
+        #                 #         print("red_signal:", red_signal)
+        #                 #         print("green_signal:", green_signal)
 
-                            # print("---------- flag values and time values after reset ----------")
-                            # print("flag_red_sig:", flag_red_sig)
-                            # print("flag_green_sig:", flag_green_sig)
-                            # print("green_sig_init_once:", green_sig_init_once)
-                            # print("flag_generated_motion_once:", flag_generated_motion_once)
-                            # print("flag_movement_demo:", flag_movement_demo)
-                            # print("flag_sig_movement_demo:", flag_sig_movement_demo)
-                            # print("sig_movement_demo:", sig_movement_demo)
-                            # print("flag_do_demo_warn:", flag_do_demo_warn)
-                            # print("flag_take_usr_input_rep_demo:", flag_take_usr_input_rep_demo)
-                            # print("flag_user_rep_done:", flag_user_rep_done)
-                            # print("pose_seq_similarity_score:", pose_seq_similarity_score)
-                            # print("red_signal:", red_signal)
-                            # print("green_signal:", green_signal)
+        #                 #         # Re-init of the marker variables
+        #                 #         flag_red_sig = False
+        #                 #         flag_green_sig = False
 
-                    #         episode_counter += 1
+        #                 #         green_sig_init_once = False
+        #                 #         flag_generated_motion_once = False
+        #                 #         flag_movement_demo = False
+        #                 #         flag_sig_movement_demo = False
+        #                 #         sig_movement_demo = None
+        #                 #         flag_do_demo_warn = False
+        #                 #         flag_take_usr_input_rep_demo = False
+        #                 #         flag_user_rep_done = False
+        #                 #         flag_shown_GIF_loop_once = False
 
-                    # print("---------- flag values and time values before reset ----------")
-                    # print("flag_user_rep_done:", flag_user_rep_done)
-                    # # print("flag_green_sig:", flag_green_sig)
-                    # # print("flag_red_sig:", flag_red_sig)
+        #                 #         pose_seq_similarity_score = None
 
-                    if flag_user_rep_done is True:
-                        # music_queue.put(None)
+        #                 #         VRNN_pose_input = []
 
+        #                 #         pose_seq_user_rep_5s = pose_seq_user_rep[len(pose_seq_user_rep) - 5:]
+        #                 #         pose_seq_user_rep = []
+
+        #                 #         red_signal = time.time()
+        #                 #         green_signal = time.time()
+
+        #                         # print("---------- flag values and time values after reset ----------")
+        #                         # print("flag_red_sig:", flag_red_sig)
+        #                         # print("flag_green_sig:", flag_green_sig)
+        #                         # print("green_sig_init_once:", green_sig_init_once)
+        #                         # print("flag_generated_motion_once:", flag_generated_motion_once)
+        #                         # print("flag_movement_demo:", flag_movement_demo)
+        #                         # print("flag_sig_movement_demo:", flag_sig_movement_demo)
+        #                         # print("sig_movement_demo:", sig_movement_demo)
+        #                         # print("flag_do_demo_warn:", flag_do_demo_warn)
+        #                         # print("flag_take_usr_input_rep_demo:", flag_take_usr_input_rep_demo)
+        #                         # print("flag_user_rep_done:", flag_user_rep_done)
+        #                         # print("pose_seq_similarity_score:", pose_seq_similarity_score)
+        #                         # print("red_signal:", red_signal)
+        #                         # print("green_signal:", green_signal)
+
+        #                 #         episode_counter += 1
+
+        #                 # print("---------- flag values and time values before reset ----------")
+        #                 # print("flag_user_rep_done:", flag_user_rep_done)
+        #                 # # print("flag_green_sig:", flag_green_sig)
+        #                 # # print("flag_red_sig:", flag_red_sig)
+
+        #                 if flag_user_rep_done is True:
+        #                     # music_queue.put(None)
+
+        #                     if True:
+        #                         flag_user_rep_done = False
+        #                         steps_batch_counter = 0
+        #                         # flag_red_sig = False
+        #                         # flag_green_sig = False
+
+        #                         T_N_M = T_N_M[:-1]
+
+        #                         print("T_N_M:", torch.tensor(T_N_M).shape)
+
+        #                         face_9_keypoints.append(T_N_M)
+        #                         # print("face_9_keypoints:", face_9_keypoints)
+
+        #                         T_N_M = []
+
+        #                         face_9_keypoints = torch.tensor(face_9_keypoints)
+        #                         print("face_9_keypoints shape 1st:", face_9_keypoints.shape)
+
+        #                         face_9_keypoints = torch.unsqueeze(face_9_keypoints, 0)
+        #                         print("face_9_keypoints shape 2nd:", face_9_keypoints.shape)
+
+        #                         B, P, T, N, M = face_9_keypoints.shape
+        #                         print("dims:", B, P, T, N, M)
+
+        #                         face_9_keypoints = face_9_keypoints.permute(0, 4, 2, 3, 1)
+        #                         print("face_9_keypoints shape 3rd:", face_9_keypoints.shape)
+        #                         print("----------------------------------------------------")
+                            
+        #                     if prev_head_movement is not None:
+        #                         curr_head_movement = face_9_keypoints
+        #                         print("music_probs__t_0:", music_probs__t_0)
+
+        #                         # Using the model to get the output::
+        #                         music_rec_probs_temp, ht_0 = actor_model(head_mov_x=curr_head_movement, 
+        #                                                                     music_prev_x=music_probs__t_0,
+        #                                                                     ht__0=ht_0)
+        #                         print("music_rec_probs_temp:", music_rec_probs_temp.shape)
+        #                         print("ht_0:", ht_0.shape)
+
+        #                         try:
+        #                             # music_probs__t_0 = torch.tensor(music_rec_probs_temp)
+
+        #                             music_probs__t_0_temp = torch.stack(music_rec_probs_temp)
+        #                             music_probs__t_0_temp = torch.unsqueeze(music_probs__t_0_temp, dim=0)
+
+        #                             # music_probs__t_0 = music_rec_probs_temp
+        #                         except Exception as e_RU_recursion:
+        #                             print("error in RU recursion:", e_RU_recursion)
+        #                             music_probs__t_0_temp = music_rec_probs_temp
+                                
+        #                         try:
+        #                             # buffer.record((np.array(prev_head_movement), np.array(curr_head_movement),
+        #                             #             music_probs__t_0.clone(), music_probs__t_0_temp.clone(),
+        #                             #             reward))
+
+        #                             # print(type(music_probs__t_0))
+        #                             # print(type(music_probs__t_0_temp))
+
+        #                             buffer.record((prev_head_movement.detach().numpy(), curr_head_movement.detach().numpy(),
+        #                                         music_probs__t_0.clone().detach().numpy(), music_probs__t_0_temp.clone().detach().numpy(),
+        #                                         reward))
+        #                             print("recorded in buffer")
+        #                         except Exception as e__buffer_record_exception:
+        #                             print("problem in buffer record function:", e__buffer_record_exception)
+                                
+        #                         try:
+        #                             buffer.learn()
+        #                         except Exception as e_buffer_learn:
+        #                             print("Error in buffer learning:", e_buffer_learn)
+                                
+        #                         try:
+        #                             music_probs__t_0 = music_probs__t_0_temp.clone()
+        #                         except Exception as e_cloning_error:
+        #                             print("Error in pytorch tensor cloning:", e_cloning_error)
+                                
+        #                         try:
+        #                             # print("pointer actor model 3")
+        #                             update_target(target_actor, actor_model, tau)
+        #                             # print("pointer 32 after reward_avg")
+        #                         except Exception as e__target_actor__update:
+        #                             print("Error in updating the target_actor model:", e__target_actor__update)
+                                
+        #                         try:
+        #                             # print("pointer critic model 3")
+        #                             update_target(target_critic, critic_model, tau)
+        #                             # print("pointer 33 after reward_avg")
+        #                         except Exception as e__target_critic__update:
+        #                             print("Error in updating the target_critic model:", e__target_critic__update)
+                                
+        #                         prev_head_movement = curr_head_movement
+        #                     else:
+        #                         prev_head_movement = face_9_keypoints
+
+        #                     green_signal = time.time()
+
+        #                     face_9_keypoints = []
+        #                     reward = 0
+
+        #                     # max_indices = music_probs__t_0.argmax(dim=-1)  # Shape: [1, 6]
+        #                     # one_hot = F.one_hot(max_indices, num_classes=7)  # Shape: [1, 6, 7]
+        #                     # one_hot = one_hot.float()
+        #                     # music_one_hot_vectors = one_hot.argmax(dim=-1)
+
+        #                     # print("music_times__per_block:", music_times__per_block)
+        #                     # print("music_one_hot_vectors:", music_one_hot_vectors)
+        #                     # print("music_probs__t_0:", music_probs__t_0)
+
+        #                     # spectro_combined.combine_spectros(music_one_hot_vectors, ep)
+        #                     # combined_music_pydub.combine_musics(music_one_hot_vectors, ep, block_duration=block_duration)
+        #                     music_index_iter = combined_music_pydub.vanilla_music_selector(music_probs__t_0) + 1
+        #                     print("music_index_iter:", music_index_iter)
+
+        #                     music_times__per_block = []
+                        
+        #                 # print("---------- flag values and time values after reset ----------")
+        #                 # print("flag_user_rep_done:", flag_user_rep_done)
+        #                 # # print("flag_green_sig:", flag_green_sig)
+        #                 # # print("flag_red_sig:", flag_red_sig)
+
+        #             # cv.imshow("img", img)
+        #             cv.imshow("img2", img2)
+        #             # print("shape of image:", img.shape)
+
+        #             # if (frame_queue.full()) or (cv.waitKey(1) & 0xFF == ord('q')):
+        #             if False or (cv.waitKey(1) & 0xFF == ord('q')):
+        #                 break
+
+        #             end_time_total = time.time()
+
+        #             # print("total time taken:", end_time_total - start_time_total)
+
+        #             # for ep in range(total_episodes):
+        #             #     _, __, ___ = EyeCropping.camera_input_2()
+        #             #     print("window num:", window_num)
+        #             #     window_num += 1
+
+        #                 # ret, frame = cap.read()
+        #                 # if not ret:
+        #                 #     break
+        #                 #
+        #                 # if num_frames != 0:
+        #                 #     frame_arr.append(frame)
+        #                 #     num_frames -= 1
+        #                 # else:
+        #                 #     # Add the frame to the queue for processing, blocking if queue is full
+        #                 #     frame_queue.put(frame_arr, block=True)
+        #                 #     num_frames = 32
+        #                 #     frame_arr = []
+        #                 #
+        #                 #     # print("window number:", window_num)
+        #                 #     #
+        #                 #     # window_num += 1
+        #                 #
+        #                 # # Display the original frame
+        #                 # cv.imshow('Original Frame', frame)
+        #                 #
+        #                 # # Give some time for the threads to process
+        #                 # # time.sleep(0.05)  # Adjust this to balance between frame capture and processing
+        #                 #
+        #                 # if (frame_queue.full()) or (cv.waitKey(1) & 0xFF == ord('q')):
+        #                 #     break
+
+        #             # vid_end_time = time.time()
+        #             # print("total time:", vid_end_time - vid_start_time)
+        # elif RUN_MODE == 1:
+        if RUN_MODE == 1:
+            success, img2 = cap.read()
+
+            nose_point_start_time = None
+            nose_point_start_flag = False
+
+            face_coords = {0: None, 1: None, 2: None, 3: None, 4: None, 5: None, 6: None, 7: None, 8: None}
+            rand_kps_1 = random_selection.tester_call_function(music_index_iter)
+
+            for k in rand_kps_1.keys():
+                face_coords[int(k)] = rand_kps_1[k]
+
+            if success:
+                for ep in range(num_frames*total_episodes):
+                    if block_time_started is False:
+                        block_start_time = time.time()
+                        block_time_started = True
+                    
+                    if nose_point_start_flag is False:
+                        nose_point_start_flag = True
+                        nose_point_start_time = time.time()
+                    
+                    if time.time() - nose_point_start_time >= head_mov_delay_time:
+                        face_coords = {0: None, 1: None, 2: None, 3: None, 4: None, 5: None, 6: None, 7: None, 8: None}
+                        rand_kps_1 = random_selection.tester_call_function(music_index_iter)
+
+                        for k in rand_kps_1.keys():
+                            face_coords[int(k)] = rand_kps_1[k]
+                        
+                        nose_point_start_flag = False
+                        nose_point_start_time = time.time()
+
+                    success, img2 = cap.read()
+
+                    if (success) and (img2 is not None):
+                        img = adjust_brightness(img2)
+                        
+                        # if flag_red_sig is True:
+                        if flag_user_rep_done is False:
+                            # if (time.time() - green_signal) < 5:
+                            if steps_batch_counter < num_steps_in_batch:
+                                    if success:
+                                        cv.putText(img2, f"Frames left {num_steps_in_batch - steps_batch_counter}", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv.LINE_AA)
+                                        steps_batch_counter += 1
+                                        # cv.putText(img2, str(5 - (int(time.time() - green_signal))), (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv.LINE_AA)
+                                        # print("flag_green_sig is still False: ", 5 - (int(time.time() - green_signal)), time.time(), green_signal)
+                                    
+                                    else:
+                                        raise Exception("Error in initial video feed")
+                                
+                            else:
+                                flag_user_rep_done = True
+                                print("flag_user_rep_done is now True")
+
+                        right_eye_main = []
+                        left_eye_main = []
+
+                        try:
+                            if (ep % block_size) == 0:
+                                decided_music_index = music_one_hot_vectors[0][(ep // block_size) % len(music_files)]
+                                music_file_temp = music_files[decided_music_index]
+                                # print("music_file_temp in music queue:", music_file_temp)
+                                
+                                # music_queue.put(music_file_temp)
+
+                                block_end_time = time.time()
+                                music_times__per_block.append(block_end_time - block_start_time)
+                                block_start_time = time.time()
+
+                                block_time_started = False
+                        except Exception as music_playing_error:
+                            print("error in sending music through queue:", music_playing_error)
+
+                        # Convert the BGR image to RGB before processing.
+                        img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+
+                        # results = holistic.process(img_rgb)
+                        
+                        # if INPUT_MODE != 0:
+                        # # if True:
+                        #     # Draw face landmarks (without connections)
+                        #     if results.face_landmarks:
+                        #         mp_drawing.draw_landmarks(img2, results.face_landmarks)
+
+                        #     # Draw pose landmarks
+                        #     if results.pose_landmarks:
+                        #         mp_drawing.draw_landmarks(img2, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS)
+                        # else:
                         if True:
-                            flag_user_rep_done = False
-                            steps_batch_counter = 0
-                            # flag_red_sig = False
-                            # flag_green_sig = False
+                            # pose_landmarks = results.pose_landmarks
 
-                            T_N_M = T_N_M[:-1]
+                            # if pose_landmarks:
+                            if True:
+                                # # mp_drawing.draw_landmarks(img2, pose_landmarks, mp_holistic.POSE_CONNECTIONS)
+                                # for key in face_coords:
+                                #     t = pose_landmarks.landmark[key]
+                                #     face_coords[key] = [t.x, t.y, t.z, t.visibility]
+                                
+                                N_M = []
 
-                            print("T_N_M:", torch.tensor(T_N_M).shape)
+                                for key in face_coords:
+                                    x, y, z, vis = face_coords[key]
+                                    N_M.append([x, y, z, vis])
 
-                            face_9_keypoints.append(T_N_M)
-                            # print("face_9_keypoints:", face_9_keypoints)
+                                    x *= img2.shape[1]
+                                    x = int(x)
+                                    
+                                    y *= img2.shape[0]
+                                    y = int(y)
 
-                            T_N_M = []
+                                    cv.circle(img2, (x, y), 3, (255, 0, 0), 3)
+                                
+                                # print("N_M:", N_M)
+                                
+                                T_N_M.append(N_M)
 
-                            face_9_keypoints = torch.tensor(face_9_keypoints)
-                            print("face_9_keypoints shape 1st:", face_9_keypoints.shape)
+                        if flag_user_rep_done is True:
+                            # music_queue.put(None)
 
-                            face_9_keypoints = torch.unsqueeze(face_9_keypoints, 0)
-                            print("face_9_keypoints shape 2nd:", face_9_keypoints.shape)
+                            if True:
+                                flag_user_rep_done = False
+                                steps_batch_counter = 0
+                                # flag_red_sig = False
+                                # flag_green_sig = False
 
-                            B, P, T, N, M = face_9_keypoints.shape
-                            print("dims:", B, P, T, N, M)
+                                T_N_M = T_N_M[:-1]
 
-                            face_9_keypoints = face_9_keypoints.permute(0, 4, 2, 3, 1)
-                            print("face_9_keypoints shape 3rd:", face_9_keypoints.shape)
-                            print("----------------------------------------------------")
-                        
-                        if prev_head_movement is not None:
-                            curr_head_movement = face_9_keypoints
-                            print("music_probs__t_0:", music_probs__t_0)
+                                print("T_N_M:", torch.tensor(T_N_M).shape)
 
-                            # Using the model to get the output::
-                            music_rec_probs_temp, ht_0 = actor_model(head_mov_x=curr_head_movement, 
-                                                                        music_prev_x=music_probs__t_0,
-                                                                        ht__0=ht_0)
-                            print("music_rec_probs_temp:", music_rec_probs_temp.shape)
-                            print("ht_0:", ht_0.shape)
+                                face_9_keypoints.append(T_N_M)
+                                # print("face_9_keypoints:", face_9_keypoints)
 
-                            try:
-                                # music_probs__t_0 = torch.tensor(music_rec_probs_temp)
+                                T_N_M = []
 
-                                music_probs__t_0_temp = torch.stack(music_rec_probs_temp)
-                                music_probs__t_0_temp = torch.unsqueeze(music_probs__t_0_temp, dim=0)
+                                face_9_keypoints = torch.tensor(face_9_keypoints)
+                                print("face_9_keypoints shape 1st:", face_9_keypoints.shape)
 
-                                # music_probs__t_0 = music_rec_probs_temp
-                            except Exception as e_RU_recursion:
-                                print("error in RU recursion:", e_RU_recursion)
-                                music_probs__t_0_temp = music_rec_probs_temp
+                                face_9_keypoints = torch.unsqueeze(face_9_keypoints, 0)
+                                print("face_9_keypoints shape 2nd:", face_9_keypoints.shape)
+
+                                B, P, T, N, M = face_9_keypoints.shape
+                                print("dims:", B, P, T, N, M)
+
+                                face_9_keypoints = face_9_keypoints.permute(0, 4, 2, 3, 1)
+                                print("face_9_keypoints shape 3rd:", face_9_keypoints.shape)
+                                print("----------------------------------------------------")
                             
-                            try:
-                                # buffer.record((np.array(prev_head_movement), np.array(curr_head_movement),
-                                #             music_probs__t_0.clone(), music_probs__t_0_temp.clone(),
-                                #             reward))
+                            if prev_head_movement is not None:
+                                curr_head_movement = face_9_keypoints
+                                print("music_probs__t_0:", music_probs__t_0)
 
-                                # print(type(music_probs__t_0))
-                                # print(type(music_probs__t_0_temp))
+                                # Using the model to get the output::
+                                music_rec_probs_temp, ht_0 = actor_model(head_mov_x=curr_head_movement, 
+                                                                            music_prev_x=music_probs__t_0,
+                                                                            ht__0=ht_0)
+                                print("music_rec_probs_temp:", music_rec_probs_temp.shape)
+                                print("ht_0:", ht_0.shape)
 
-                                buffer.record((prev_head_movement.detach().numpy(), curr_head_movement.detach().numpy(),
-                                            music_probs__t_0.clone().detach().numpy(), music_probs__t_0_temp.clone().detach().numpy(),
-                                            reward))
-                                print("recorded in buffer")
-                            except Exception as e__buffer_record_exception:
-                                print("problem in buffer record function:", e__buffer_record_exception)
-                            
-                            try:
-                                buffer.learn()
-                            except Exception as e_buffer_learn:
-                                print("Error in buffer learning:", e_buffer_learn)
-                            
-                            try:
-                                music_probs__t_0 = music_probs__t_0_temp.clone()
-                            except Exception as e_cloning_error:
-                                print("Error in pytorch tensor cloning:", e_cloning_error)
-                            
-                            try:
-                                # print("pointer actor model 3")
-                                update_target(target_actor, actor_model, tau)
-                                # print("pointer 32 after reward_avg")
-                            except Exception as e__target_actor__update:
-                                print("Error in updating the target_actor model:", e__target_actor__update)
-                            
-                            try:
-                                # print("pointer critic model 3")
-                                update_target(target_critic, critic_model, tau)
-                                # print("pointer 33 after reward_avg")
-                            except Exception as e__target_critic__update:
-                                print("Error in updating the target_critic model:", e__target_critic__update)
-                            
-                            prev_head_movement = curr_head_movement
-                        else:
-                            prev_head_movement = face_9_keypoints
+                                try:
+                                    # music_probs__t_0 = torch.tensor(music_rec_probs_temp)
 
-                        green_signal = time.time()
+                                    music_probs__t_0_temp = torch.stack(music_rec_probs_temp)
+                                    music_probs__t_0_temp = torch.unsqueeze(music_probs__t_0_temp, dim=0)
 
-                        face_9_keypoints = []
-                        reward = 0
+                                    # music_probs__t_0 = music_rec_probs_temp
+                                except Exception as e_RU_recursion:
+                                    print("error in RU recursion:", e_RU_recursion)
+                                    music_probs__t_0_temp = music_rec_probs_temp
+                                
+                                try:
+                                    # buffer.record((np.array(prev_head_movement), np.array(curr_head_movement),
+                                    #             music_probs__t_0.clone(), music_probs__t_0_temp.clone(),
+                                    #             reward))
 
-                        max_indices = music_probs__t_0.argmax(dim=-1)  # Shape: [1, 6]
-                        one_hot = F.one_hot(max_indices, num_classes=7)  # Shape: [1, 6, 7]
-                        one_hot = one_hot.float()
-                        music_one_hot_vectors = one_hot.argmax(dim=-1)
+                                    # print(type(music_probs__t_0))
+                                    # print(type(music_probs__t_0_temp))
 
-                        print("music_times__per_block:", music_times__per_block)
-                        # spectro_combined.combine_spectros(music_one_hot_vectors, ep)
-                        combined_music_pydub.combine_musics(music_one_hot_vectors, ep, block_duration=block_duration)
+                                    chosen_music, reward = random_selection.tester_call_function__reward(music_index_iter)
 
-                        music_times__per_block = []
-                    
-                    # print("---------- flag values and time values after reset ----------")
-                    # print("flag_user_rep_done:", flag_user_rep_done)
-                    # # print("flag_green_sig:", flag_green_sig)
-                    # # print("flag_red_sig:", flag_red_sig)
+                                    buffer.record((prev_head_movement.detach().numpy(), curr_head_movement.detach().numpy(),
+                                                music_probs__t_0.clone().detach().numpy(), music_probs__t_0_temp.clone().detach().numpy(),
+                                                reward))
+                                    print("recorded in buffer")
+                                except Exception as e__buffer_record_exception:
+                                    print("problem in buffer record function:", e__buffer_record_exception)
+                                
+                                try:
+                                    buffer.learn()
+                                except Exception as e_buffer_learn:
+                                    print("Error in buffer learning:", e_buffer_learn)
+                                
+                                try:
+                                    music_probs__t_0 = music_probs__t_0_temp.clone()
+                                except Exception as e_cloning_error:
+                                    print("Error in pytorch tensor cloning:", e_cloning_error)
+                                
+                                try:
+                                    # print("pointer actor model 3")
+                                    update_target(target_actor, actor_model, tau)
+                                    # print("pointer 32 after reward_avg")
+                                except Exception as e__target_actor__update:
+                                    print("Error in updating the target_actor model:", e__target_actor__update)
+                                
+                                try:
+                                    # print("pointer critic model 3")
+                                    update_target(target_critic, critic_model, tau)
+                                    # print("pointer 33 after reward_avg")
+                                except Exception as e__target_critic__update:
+                                    print("Error in updating the target_critic model:", e__target_critic__update)
+                                
+                                prev_head_movement = curr_head_movement
+                            else:
+                                prev_head_movement = face_9_keypoints
 
-                # cv.imshow("img", img)
-                cv.imshow("img2", img2)
-                # print("shape of image:", img.shape)
+                            green_signal = time.time()
 
-                # if (frame_queue.full()) or (cv.waitKey(1) & 0xFF == ord('q')):
-                if False or (cv.waitKey(1) & 0xFF == ord('q')):
-                    break
+                            face_9_keypoints = []
+                            reward = 0
 
-                end_time_total = time.time()
+                            print("chosen_music,music_index_iter:", chosen_music, music_index_iter)
+                            chosen_music_array.append(chosen_music)
+                            music_index_iter_array.append(music_index_iter)
+                            music_index_iter = combined_music_pydub.vanilla_music_selector(music_probs__t_0)
+                            # print("music_index_iter:", music_index_iter)
 
-                # print("total time taken:", end_time_total - start_time_total)
+                            music_times__per_block = []
 
-                # for ep in range(total_episodes):
-                #     _, __, ___ = EyeCropping.camera_input_2()
-                #     print("window num:", window_num)
-                #     window_num += 1
+                    # cv.imshow("img", img)
+                    cv.imshow("img2", img2)
+                    # print("shape of image:", img.shape)
 
-                    # ret, frame = cap.read()
-                    # if not ret:
-                    #     break
-                    #
-                    # if num_frames != 0:
-                    #     frame_arr.append(frame)
-                    #     num_frames -= 1
-                    # else:
-                    #     # Add the frame to the queue for processing, blocking if queue is full
-                    #     frame_queue.put(frame_arr, block=True)
-                    #     num_frames = 32
-                    #     frame_arr = []
-                    #
-                    #     # print("window number:", window_num)
-                    #     #
-                    #     # window_num += 1
-                    #
-                    # # Display the original frame
-                    # cv.imshow('Original Frame', frame)
-                    #
-                    # # Give some time for the threads to process
-                    # # time.sleep(0.05)  # Adjust this to balance between frame capture and processing
-                    #
                     # if (frame_queue.full()) or (cv.waitKey(1) & 0xFF == ord('q')):
-                    #     break
+                    if False or (cv.waitKey(1) & 0xFF == ord('q')):
+                        break
 
-                # vid_end_time = time.time()
-                # print("total time:", vid_end_time - vid_start_time)
+                    end_time_total = time.time()
 
     except Exception as e_video_input_threading:
         print("Error in video input threading...:", e_video_input_threading)
@@ -2180,6 +2442,18 @@ def main():
 
     # # Stop music after video ends
     # pygame.mixer.music.stop()
+
+    x = [_ for _ in range(len(chosen_music_array))]
+
+    plt.plot(x, chosen_music_array, label='Tester Chosen Music Index', color='blue')
+    plt.plot(x, music_index_iter_array, label='Selected Music Index', color='red')
+
+    plt.title('Comparison of music index preferred by tester and chosen by model')
+    plt.xlabel('Episode')
+    plt.ylabel('Music Index')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
 
 if __name__ == "__main__":
