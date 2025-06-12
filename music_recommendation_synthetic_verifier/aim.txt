@@ -1,0 +1,2 @@
+1. The first objective is to test the music recommendation system for a synthetic user with a randomly selected "good" music,
+assuming that the user is sitting still on a chair.
